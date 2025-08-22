@@ -14,12 +14,7 @@ public:
     void start(uint32_t sample_rate);
     virtual int16_t process_sample(int16_t sample)
     {
-        #ifdef DAC_GPIO26_ONLY
-        // DAC needs unsigned 8 bit samples
-        return sample;
-        #else
         // DAC needs unsigned 16 bit samples
         return sample + 32768;
-        #endif
     }
 };

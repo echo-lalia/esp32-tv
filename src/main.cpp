@@ -20,7 +20,6 @@
 #include "PowerUtils.h"
 #include "Button.h"
 #include <Wire.h>
-#include "Touch/cst816T.h"
 
 const char *WIFI_SSID = "CMGResearch";
 const char *WIFI_PASSWORD = "02087552867";
@@ -52,7 +51,6 @@ TFT display;
 #endif
 
 TwoWire wire2(0);
-cst816t *touch;
 
 void setup()
 {
@@ -76,18 +74,7 @@ void setup()
   #endif
   #endif
 
-  // wire2.setPins(38, 48);
-  // touch = new cst816t(wire2, 43);
-  // touch->begin();
-  // xTaskCreate([](void *pvParameters) {
-  //   while (1)
-  //   {
-  //     if (touch->available()) {
-  //       Serial.printf("%d, %s\n", touch->gesture_id, touch->state().c_str());
-  //     }
-  //     vTaskDelay(100);
-  //   }
-  // }, "touch", 4096, NULL, 1, NULL);
+
   #ifdef USE_SDCARD
   Serial.println("Using SD Card");
   // power on the SD card
@@ -188,9 +175,6 @@ void setup()
   delay(500);
   videoPlayer->play();
 #endif
-  #ifdef M5CORE2
-  audioOutput->setVolume(4);
-  #endif
 }
 
 int channel = 0;
