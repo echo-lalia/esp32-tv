@@ -1,6 +1,4 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include "VideoPlayer.h"
 #include "AudioOutput/AudioOutput.h"
 #include "ChannelData/ChannelData.h"

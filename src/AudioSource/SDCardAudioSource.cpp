@@ -1,6 +1,4 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include "SDCardAudioSource.h"
 #include "../AVIParser/AVIParser.h"
 #include "../ChannelData/SDCardChannelData.h"

@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <WiFi.h>
 #include "Displays/TFT.h"
 #include "Displays/Matrix.h"
 #include "RemoteInput.h"
@@ -9,10 +8,7 @@
 #include "AudioOutput/PDMTimerOutput.h"
 #include "AudioOutput/PWMTimerOutput.h"
 #include "AudioOutput/PDMOutput.h"
-#include "ChannelData/NetworkChannelData.h"
 #include "ChannelData/SDCardChannelData.h"
-#include "AudioSource/NetworkAudioSource.h"
-#include "VideoSource/NetworkVideoSource.h"
 #include "AudioSource/SDCardAudioSource.h"
 #include "VideoSource/SDCardVideoSource.h"
 #include "AVIParser/AVIParser.h"
@@ -21,11 +17,6 @@
 #include "Button.h"
 #include <Wire.h>
 
-const char *WIFI_SSID = "CMGResearch";
-const char *WIFI_PASSWORD = "02087552867";
-const char *FRAME_URL = "http://192.168.1.229:8123:8123/frame";
-const char *AUDIO_URL = "http://192.168.1.229:8123/audio";
-const char *CHANNEL_INFO_URL = "http://192.168.1.229:8123/channel_info";
 
 #ifdef HAS_IR_REMOTE
 RemoteInput *remoteInput = NULL;
@@ -66,7 +57,7 @@ void setup()
   // Enable audio (if required)
   pinMode(AUDIO_ENABLE_PIN, OUTPUT);
   #ifdef AUDIO_ENABLE_VAL
-  Serial.printf("Enabling audio by setting Pin %d to %d", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  Serial.printf("Enabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
   digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
   #else
   Serial.printf("Enabling audio by setting Pin %d LOW", AUDIO_ENABLE_PIN);
@@ -75,7 +66,6 @@ void setup()
   #endif
 
 
-  #ifdef USE_SDCARD
   Serial.println("Using SD Card");
   // power on the SD card
   #ifdef SD_CARD_PWR
@@ -100,22 +90,6 @@ void setup()
   channelData = new SDCardChannelData(card, "/");
   audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
   videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
-  #else
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  WiFi.setSleep(false);
-  WiFi.setTxPower(WIFI_POWER_19_5dBm);
-  Serial.println("");
-  // disable WiFi power saving for speed
-  Serial.println("WiFi connected");
-  channelData = new NetworkChannelData(CHANNEL_INFO_URL, FRAME_URL, AUDIO_URL);
-  videoSource = new NetworkVideoSource((NetworkChannelData *) channelData);
-  audioSource = new NetworkAudioSource((NetworkChannelData *) channelData);
-  #endif
 
 #ifdef HAS_IR_REMOTE
   remoteInput = new RemoteInput(IR_RECV_PIN, IR_RECV_PWR, IR_RECV_GND, IR_RECV_IND);
