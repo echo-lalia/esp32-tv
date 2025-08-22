@@ -1,6 +1,0 @@
-Flask 
-opencv-python
-soundfile
-scipy
-pillow
-tqdm
