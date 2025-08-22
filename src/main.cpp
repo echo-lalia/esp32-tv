@@ -12,7 +12,6 @@
 #include "VideoSource/SDCardVideoSource.h"
 #include "AVIParser/AVIParser.h"
 #include "SDCard.h"
-#include "PowerUtils.h"
 #include "Button.h"
 #include <Wire.h>
 
@@ -45,7 +44,6 @@ void setup()
   Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
   Serial.printf("Total PSRAM: %d\n", ESP.getPsramSize());
   Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
-  powerInit();
   buttonInit();
 
   #ifdef AUDIO_ENABLE_PIN
