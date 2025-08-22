@@ -64,6 +64,18 @@ void setup()
   powerInit();
   buttonInit();
 
+  #ifdef AUDIO_ENABLE_PIN
+  // Enable audio (if required)
+  pinMode(AUDIO_ENABLE_PIN, OUTPUT);
+  #ifdef AUDIO_ENABLE_VAL
+  Serial.printf("Enabling audio by setting Pin %d to %d", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  #else
+  Serial.printf("Enabling audio by setting Pin %d LOW", AUDIO_ENABLE_PIN);
+  digitalWrite(AUDIO_ENABLE_PIN, LOW);
+  #endif
+  #endif
+
   // wire2.setPins(38, 48);
   // touch = new cst816t(wire2, 43);
   // touch->begin();
