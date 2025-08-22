@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "Displays/TFT.h"
 #include "Displays/Matrix.h"
-#include "RemoteInput.h"
 #include "VideoPlayer.h"
 #include "AudioOutput/I2SOutput.h"
 #include "AudioOutput/DACOutput.h"
@@ -18,12 +17,8 @@
 #include <Wire.h>
 
 
-#ifdef HAS_IR_REMOTE
-RemoteInput *remoteInput = NULL;
-#else
 #ifndef HAS_BUTTONS
-#warning "No Remote Input - Will default to playing channel 0"
-#endif
+#warning "No Input - Will default to playing channel 0"
 #endif
 
 #ifndef USE_DMA
@@ -91,10 +86,6 @@ void setup()
   audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
   videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
 
-#ifdef HAS_IR_REMOTE
-  remoteInput = new RemoteInput(IR_RECV_PIN, IR_RECV_PWR, IR_RECV_GND, IR_RECV_IND);
-  remoteInput->start();
-#endif
 
 #ifdef USE_DAC_AUDIO
   audioOutput = new DACOutput(I2S_NUM_0);
@@ -137,7 +128,7 @@ void setup()
     audioOutput
   );
   videoPlayer->start();
-#ifndef HAS_IR_REMOTE
+
   display.drawTuningText();
   // get the channel info
   while(!channelData->fetchChannelData()) {
@@ -148,7 +139,7 @@ void setup()
   videoPlayer->setChannel(0);
   delay(500);
   videoPlayer->play();
-#endif
+
 }
 
 int channel = 0;
@@ -188,47 +179,7 @@ void channelUp() {
 
 void loop()
 {
-#ifdef HAS_IR_REMOTE
-  RemoteCommands command = remoteInput->getLatestCommand();
-  if (command != RemoteCommands::UNKNOWN)
-  {
-    switch (command)
-    {
-    case RemoteCommands::POWER:
-      // log out RAM usage
-      Serial.printf("Total heap: %d\n", ESP.getHeapSize());
-      Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
-      Serial.printf("Total PSRAM: %d\n", ESP.getPsramSize());
-      Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
 
-      videoPlayer->stop();
-      display.drawTuningText();
-      Serial.println("POWER");
-      // get the channel info
-      while(!channelData->fetchChannelData()) {
-        Serial.println("Failed to fetch channel data");
-        delay(1000);
-      }
-      videoPlayer->setChannel(0);
-      videoPlayer->play();
-      break;
-    case RemoteCommands::VOLUME_UP:
-      volumeUp();
-      break;
-    case RemoteCommands::VOLUME_DOWN:
-      volumeDown();
-      break;
-    case RemoteCommands::CHANNEL_UP:
-      channelUp();
-      break;
-    case RemoteCommands::CHANNEL_DOWN:
-      channelDown();
-      break;
-    }
-    delay(100);
-    remoteInput->getLatestCommand();
-  }
-#endif
 #ifdef HAS_BUTTONS
   if (buttonLeft()) {
     channelDown();
