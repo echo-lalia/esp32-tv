@@ -65,14 +65,18 @@ bool AVIParser::isMoviListChunk(unsigned int chunkSize)
 bool AVIParser::open()
 {
   mFile = fopen(mFileName.c_str(), "rb");
-  // Set file params
-  setvbuf(mFile, NULL, _IOFBF, 1024 * 32);
-
   if (!mFile)
   {
     Serial.printf("Failed to open file.\n");
     return false;
   }
+
+  #ifdef FILE_BUFFER_SIZE
+  // Increase size of file buffer if needed.
+  Serial.printf("Setting file buffer size to %d bytes.\n", FILE_BUFFER_SIZE);
+  setvbuf(mFile, NULL, _IOFBF, FILE_BUFFER_SIZE);
+  #endif
+
   // check the file is valid
   ChunkHeader header;
   // Read RIFF header
