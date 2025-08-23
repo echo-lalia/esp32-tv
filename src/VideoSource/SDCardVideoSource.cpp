@@ -5,7 +5,7 @@
 #include "../ChannelData/SDCardChannelData.h"
 
 
-#define DEFAULT_FPS 12
+#define DEFAULT_FPS 6
 
 SDCardVideoSource::SDCardVideoSource(SDCardChannelData *mChannelData) : mChannelData(mChannelData)
 {
@@ -47,12 +47,12 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   // Skip some number of frames if we have fallen behind
   while (targetFrame - mFrameCount > 1){
     mFrameCount++;
-    Serial.printf("Skipping frame: %d\n", mFrameCount);
+    // Serial.printf("Skipping frame: %d\n", mFrameCount);
     frameLength = parser->skipNextChunk();
   }
   // We are caught up to targetFrame-1, so load the next frame to show.
   mFrameCount++;
-  Serial.printf("Getting Frame: %d\n", mFrameCount);
+  // Serial.printf("Getting Frame: %d\n", mFrameCount);
   frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
 
   return true;
