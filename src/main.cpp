@@ -89,7 +89,7 @@ void setup()
 
 #ifdef USE_DAC_AUDIO
   audioOutput = new DACOutput(I2S_NUM_0);
-  audioOutput->start(16000);
+  audioOutput->start(AUDIO_RATE);
 #endif
 #ifdef PDM_GPIO_NUM
   i2s speaker pins
@@ -99,11 +99,11 @@ void setup()
       .data_out_num = PDM_GPIO_NUM,
       .data_in_num = I2S_PIN_NO_CHANGE};
   audioOutput = new PDMOutput(I2S_NUM_0, i2s_speaker_pins);
-  audioOutput->start(8000);
+  audioOutput->start(AUDIO_RATE);
 #endif
 #ifdef PWM_GPIO_NUM
   audioOutput = new PWMTimerOutput(PWM_GPIO_NUM);
-  audioOutput->start(8000);
+  audioOutput->start(AUDIO_RATE);
 #endif
 #ifdef I2S_SPEAKER_SERIAL_CLOCK
 #ifdef SPK_MODE
@@ -118,7 +118,7 @@ void setup()
       .data_in_num = I2S_PIN_NO_CHANGE};
 
   audioOutput = new I2SOutput(I2S_NUM_1, i2s_speaker_pins);
-  audioOutput->start(8000);
+  audioOutput->start(AUDIO_RATE);
 #endif
   videoPlayer = new VideoPlayer(
     channelData,

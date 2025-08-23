@@ -224,7 +224,7 @@ void VideoPlayer::audioPlayerTask()
           mVideoSource->updateAudioTime(0);
           break;
         }
-        mVideoSource->updateAudioTime(1000 * mCurrentAudioSample / 8000);
+        mVideoSource->updateAudioTime(1000 * mCurrentAudioSample / AUDIO_RATE);
       }
     }
     else

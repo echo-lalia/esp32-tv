@@ -7,6 +7,10 @@
 
 #include "VideoPlayerState.h"
 
+#ifndef AUDIO_RATE
+#define AUDIO_RATE 16000
+#endif
+
 class Display;
 class AudioOutput;
 

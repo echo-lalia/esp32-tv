@@ -4,8 +4,10 @@
 #include "../AVIParser/AVIParser.h"
 #include "../ChannelData/SDCardChannelData.h"
 
+#ifndef DEFAULT_FPS
+#define DEFAULT_FPS 15
+#endif
 
-#define DEFAULT_FPS 6
 
 SDCardVideoSource::SDCardVideoSource(SDCardChannelData *mChannelData) : mChannelData(mChannelData)
 {
