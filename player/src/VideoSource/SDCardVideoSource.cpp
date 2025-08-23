@@ -38,15 +38,18 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   // work out the video time from a combination of the currentAudioSample and the elapsed time
   int elapsedTime = millis() - mLastAudioTimeUpdateMs;
   int videoTime = mAudioTimeMs + elapsedTime;
-  int frameTime = 1000 * mFrameCount / DEFAULT_FPS;
-  if (videoTime <= frameTime)
-  {
+  int targetFrame = videoTime * DEFAULT_FPS / 1000;
+  if (mFrameCount >= targetFrame){
     return false;
   }
-  while (videoTime > 1000 * mFrameCount / DEFAULT_FPS)
-  {
+  // Skip some number of frames if we have fallen behind
+  while (targetFrame - mFrameCount > 1){
     mFrameCount++;
-    frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
+    frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength, true);
   }
+  // We are caught up to targetFrame-1, so load the next frame to show.
+  mFrameCount++;
+  frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
+
   return true;
 }

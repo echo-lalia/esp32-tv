@@ -20,5 +20,5 @@ public:
   AVIParser(std::string fname, AVIChunkType requiredChunkType);
   ~AVIParser();
   bool open();
-  size_t getNextChunk(uint8_t **buffer, size_t &bufferLength);
+  size_t getNextChunk(uint8_t **buffer, size_t &bufferLength, bool skipRead=false);
 };

@@ -60,6 +60,13 @@ bool AVIParser::isMoviListChunk(unsigned int chunkSize)
 bool AVIParser::open()
 {
   mFile = fopen(mFileName.c_str(), "rb");
+
+  #ifdef FILE_BUFFER_SIZE
+  // Increase size of file buffer if needed.
+  Serial.printf("Setting file buffer size to %d bytes.\n", FILE_BUFFER_SIZE);
+  setvbuf(mFile, NULL, _IOFBF, FILE_BUFFER_SIZE);
+  #endif
+
   if (!mFile)
   {
     Serial.printf("Failed to open file.\n");
@@ -129,7 +136,7 @@ bool AVIParser::open()
   return true;
 }
 
-size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
+size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength, bool skipRead)
 {
   // check if the file is open
   if (!mFile)
@@ -153,14 +160,22 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
     if (mRequiredChunkType == AVIChunkType::VIDEO && isVideoChunk ||
         mRequiredChunkType == AVIChunkType::AUDIO && isAudioChunk)
     {
-      // we've got the required chunk - copy it into the provided buffer
-      // reallocate the buffer if necessary
-      if (header.chunkSize > bufferLength)
-      {
-        *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
+      // we've got the required chunk
+      if (skipRead)
+      { // skip over this chunk
+        fseek(mFile, header.chunkSize, SEEK_CUR);
       }
-      // copy the chunk data
-      fread(*buffer, header.chunkSize, 1, mFile);
+      else
+      { // copy this chunk into the provided buffer
+        // reallocate the buffer if necessary
+        if (header.chunkSize > bufferLength)
+        {
+          *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
+          bufferLength = header.chunkSize;
+        }
+        // copy the chunk data
+        fread(*buffer, header.chunkSize, 1, mFile);
+      }
       mMoviListLength -= header.chunkSize;
       // handle any padding bytes
       if (header.chunkSize % 2 != 0)
