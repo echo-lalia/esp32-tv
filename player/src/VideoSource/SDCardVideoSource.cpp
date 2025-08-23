@@ -44,12 +44,19 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   }
   // Skip some number of frames if we have fallen behind
   while (targetFrame - mFrameCount > 1){
+    size_t skipped = parser->getNextChunk(buffer, bufferLength, true);
+    if (skipped == 0) {
+      // No more data or error — bail without advancing the frame counter.
+      return false;
+    }
     mFrameCount++;
-    frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength, true);
   }
   // We are caught up to targetFrame-1, so load the next frame to show.
+  frameLength = parser->getNextChunk(buffer, bufferLength);
+  if (frameLength == 0){
+    return false;
+  }
   mFrameCount++;
-  frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
 
   return true;
 }
