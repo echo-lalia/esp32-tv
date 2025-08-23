@@ -157,6 +157,7 @@ void VideoPlayer::framePlayerTask()
       continue;
     }
     // get the next frame
+    Serial.println("Getting next video frame.");
     if (!mVideoSource->getVideoFrame(&jpegBuffer, jpegBufferLength, jpegLength))
     {
       // no frame ready yet

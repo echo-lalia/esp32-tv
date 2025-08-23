@@ -4,6 +4,7 @@
 #include <string.h>
 #include "AVIParser.h"
 
+
 typedef struct
 {
   char chunkId[4];
@@ -129,6 +130,73 @@ bool AVIParser::open()
   return true;
 }
 
+
+size_t AVIParser::skipNextChunk()
+{
+  // check if the file is open
+  if (!mFile)
+  {
+    Serial.println("No file open.");
+    return 0;
+  }
+  // did we find the movi list?
+  if (mMoviListPosition == 0) {
+    Serial.println("No movi list found.");
+    return 0;
+  }
+  // get the next chunk of data from the list
+  ChunkHeader header;
+  while (mMoviListLength > 0)
+  {
+    readChunk(mFile, &header);
+    mMoviListLength -= 8;
+    bool isVideoChunk = strncmp(header.chunkId, "00dc", 4) == 0;
+    bool isAudioChunk = strncmp(header.chunkId, "01wb", 4) == 0;
+    if (mRequiredChunkType == AVIChunkType::VIDEO && isVideoChunk ||
+        mRequiredChunkType == AVIChunkType::AUDIO && isAudioChunk)
+    {
+      // we've got the required chunk - copy it into the provided buffer
+      // reallocate the buffer if necessary
+      // if (header.chunkSize > bufferLength)
+      // {
+      //   // Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
+      //   // Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
+      //   *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
+      // }
+      // copy the chunk data
+      // fread(*buffer, header.chunkSize, 1, mFile);
+
+      // We got the required chunk. Skip it and return
+      fseek(mFile, header.chunkSize, SEEK_CUR);
+      
+      mMoviListLength -= header.chunkSize;
+      // handle any padding bytes
+      if (header.chunkSize % 2 != 0)
+      {
+        fseek(mFile, 1, SEEK_CUR);
+        mMoviListLength--;
+      }
+      return header.chunkSize;
+    }
+    else
+    {
+      // the data is not what was required - skip over the chunk
+      fseek(mFile, header.chunkSize, SEEK_CUR);
+      mMoviListLength -= header.chunkSize;
+    }
+    // handle any padding bytes
+    if (header.chunkSize % 2 != 0)
+    {
+      fseek(mFile, 1, SEEK_CUR);
+      mMoviListLength--;
+    }
+  }
+  // no more chunks
+  Serial.println("No more data");
+  return 0;
+}
+
+
 size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
 {
   // check if the file is open
@@ -157,10 +225,13 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
       // reallocate the buffer if necessary
       if (header.chunkSize > bufferLength)
       {
+        // Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
+        // Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
         *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
       }
       // copy the chunk data
       fread(*buffer, header.chunkSize, 1, mFile);
+      
       mMoviListLength -= header.chunkSize;
       // handle any padding bytes
       if (header.chunkSize % 2 != 0)
