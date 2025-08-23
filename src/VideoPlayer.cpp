@@ -37,7 +37,7 @@ void VideoPlayer::start()
       1,
       NULL,
       0);
-  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 10000, this, 1, NULL, 0);
+  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 10000, this, 1, NULL, 1);
 }
 
 void VideoPlayer::setChannel(int channel)
@@ -157,7 +157,6 @@ void VideoPlayer::framePlayerTask()
       continue;
     }
     // get the next frame
-    Serial.println("Getting next video frame.");
     if (!mVideoSource->getVideoFrame(&jpegBuffer, jpegBufferLength, jpegLength))
     {
       // no frame ready yet

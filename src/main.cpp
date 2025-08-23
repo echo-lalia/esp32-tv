@@ -40,11 +40,13 @@ TwoWire wire2(0);
 void setup()
 {
   Serial.begin(115200);
+  Serial.printf("CPU freq: %dmhz\n", ESP.getCpuFreqMHz());
   Serial.printf("Total heap: %d\n", ESP.getHeapSize());
   Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
   Serial.printf("Total PSRAM: %d\n", ESP.getPsramSize());
   Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
   buttonInit();
+
 
   #ifdef AUDIO_ENABLE_PIN
   // Enable audio (if required)

@@ -225,9 +225,9 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
       // reallocate the buffer if necessary
       if (header.chunkSize > bufferLength)
       {
-        // Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
-        // Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
+        Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
         *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
+        bufferLength = header.chunkSize;
       }
       // copy the chunk data
       fread(*buffer, header.chunkSize, 1, mFile);

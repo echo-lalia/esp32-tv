@@ -55,17 +55,5 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   Serial.printf("Getting Frame: %d\n", mFrameCount);
   frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
 
-  // int frameTime = 1000 * mFrameCount / DEFAULT_FPS;
-  // if (videoTime <= frameTime)
-  // {
-  //   return false;
-  // }
-
-  // while (videoTime > 1000 * mFrameCount / DEFAULT_FPS)
-  // {
-  //   mFrameCount++;
-  //   Serial.printf("Getting Frame: %d\n", mFrameCount);
-  //   frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
-  // }
   return true;
 }
