@@ -52,8 +52,12 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
     // Serial.printf("Skipping frame: %d\n", mFrameCount);
     frameLength = parser->skipNextChunk();
   }
+
   // We are caught up to targetFrame-1, so load the next frame to show.
   mFrameCount++;
+  #if CORE_DEBUG_LEVEL > 0
+  Serial.printf("Parsing frame %d\n", mFrameCount);
+  #endif
   // Serial.printf("Getting Frame: %d\n", mFrameCount);
   frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
 

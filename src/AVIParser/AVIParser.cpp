@@ -5,8 +5,8 @@
 #include "AVIParser.h"
 
 
-#define PROFILE_START int start_time = millis(); int new_time = start_time;
-#define PROFILE_CHECKPOINT(text) new_time = millis(); Serial.printf(text ": %dms\n", new_time - start_time); start_time = new_time;
+// #define PROFILE_START int start_time = millis(); int new_time = start_time;
+// #define PROFILE_CHECKPOINT(text) new_time = millis(); Serial.printf(text ": %dms\n", new_time - start_time); start_time = new_time;
 
 
 typedef struct
@@ -221,11 +221,11 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
   ChunkHeader header;
   while (mMoviListLength > 0)
   {
-    PROFILE_START;
+    // PROFILE_START;
     
     
     readChunk(mFile, &header);
-    if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("readChunk");}
+    // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("readChunk");}
 
     mMoviListLength -= 8;
     bool isVideoChunk = strncmp(header.chunkId, "00dc", 4) == 0;
@@ -235,7 +235,7 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
     {
       // we've got the required chunk - copy it into the provided buffer
       // reallocate the buffer if necessary
-      if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("enter loop");}
+      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("enter loop");}
 
       if (header.chunkSize > bufferLength)
       {
@@ -243,11 +243,11 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
         *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
         bufferLength = header.chunkSize;
       }
-      if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("realloc");}
+      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("realloc");}
 
       // copy the chunk data
       fread(*buffer, header.chunkSize, 1, mFile);
-      if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("read into buffer");}
+      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("read into buffer");}
       
       mMoviListLength -= header.chunkSize;
       // handle any padding bytes
@@ -256,7 +256,7 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
         fseek(mFile, 1, SEEK_CUR);
         mMoviListLength--;
       }
-      if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("finishUp");}
+      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("finishUp");}
 
       return header.chunkSize;
     }
