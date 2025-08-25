@@ -42,7 +42,7 @@
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
-0.06
+0.02
 
 
 //!PARAM aberration
@@ -54,7 +54,7 @@
 //!PARAM brightness
 //!DESC When adding scanline gaps and grille the image can get very dark. Brightness tries to compensate for that.
 //!TYPE float
-1.05
+1.2
 //!PARAM discolor
 //!DESC Add a discolor effect simulating a VHS
 //!TYPE int
@@ -74,12 +74,12 @@
 //!PARAM vignette_intensity
 //!DESC Size of the vignette, how far towards the middle it should go.
 //!TYPE float
-0.4
+0.9
 //!PARAM vignette_opacity
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
-0.5
+0.6
 
 
 
@@ -223,8 +223,8 @@ vec4 hook()
 
     // Apply discoloration to get a VHS look (lower saturation and higher contrast)
 	// You can play with the values below
-	float saturation = 0.0;
-	float contrast = 1.0;
+	float saturation = 0.05;
+	float contrast = 1.05;
 	if (discolor==1)
 	{
 		// Saturation
