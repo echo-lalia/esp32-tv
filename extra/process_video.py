@@ -3,9 +3,24 @@ import subprocess
 import argparse
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("input_path")
+parser.add_argument("output_path")
 
-CRT_SHADER_PATH = os.path.join(__file__, "crt_shader.hlsl")
+args = parser.parse_args()
+input_path = args.input_path
+output_path = args.output_path
 
+
+
+CRT_SHADER_PATH = os.path.join(os.path.dirname(__file__), "crt_shader.hlsl")
+
+
+def _format_ffmpeg_path(path: str) -> str:
+    """Escape special ffmpeg filter characters so that a file path can be input."""
+    _COLON = r"\\:"
+    _BSLASH = "/\\"
+    return path.replace("\\", _BSLASH).replace(":", _COLON)
 
 
 def process_video_file(
@@ -18,6 +33,8 @@ def process_video_file(
         jpeg_quality=31,
         audio_rate=8000
         ):
+
+    # TODO: Consider also extracting edges from main "sharp" video, and subtracting those edges from the smooth edges before mixing smooth edges in.
 
     # Scale then crop (and optionally apply an unsharp mask to highligh edges), before splitting into two streams
     _unsharp_filter = "unsharp=luma_msize_x=13:luma_msize_y=13:luma_amount=2.0, " if unsharp_mask else ""
@@ -43,7 +60,7 @@ def process_video_file(
 
     # Init vulkan if using a shader (this is required by libplacebo) and set shader filter.
     _shader_init_hw = "-init_hw_device vulkan" if crt_shader else ""
-    _crt_shader = f", libplacebo=custom_shader_path='{CRT_SHADER_PATH}'" if crt_shader else ""
+    _crt_shader = f", libplacebo=custom_shader_path={_format_ffmpeg_path(CRT_SHADER_PATH)}" if crt_shader else ""
     # Blend the dark edges from [SMEDGES] over the sharp frame to create a faux smear-frame look.
     blend_sharp_smedges_output = f"[SHARP][SMEDGES] blend=all_mode=darken:all_opacity=0.6{_crt_shader}"
 
@@ -51,5 +68,11 @@ def process_video_file(
 
     ffmpeg_cmd = f"""ffmpeg -i "{input_path}" {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
 
+    subprocess.run(ffmpeg_cmd)
+
     # print(ffmpeg_cmd)
 
+
+
+if __name__ == "__main__":
+    process_video_file(input_path, output_path)

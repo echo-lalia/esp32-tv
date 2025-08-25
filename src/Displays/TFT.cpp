@@ -3,6 +3,12 @@
 #include <TFT_eSPI.h>
 #include "TFT.h"
 
+
+#ifndef TFT_ROTATION
+#define TFT_ROTATION 3
+#endif
+
+
 TFT::TFT(): tft(new TFT_eSPI()) {
   // power on the tft
   #ifdef TFT_POWER
@@ -14,7 +20,7 @@ TFT::TFT(): tft(new TFT_eSPI()) {
   #endif
 
   tft->init();
-  tft->setRotation(1);
+  tft->setRotation(3);
   tft->fillScreen(TFT_BLACK);
   #ifdef USE_DMA
   tft->initDMA();
