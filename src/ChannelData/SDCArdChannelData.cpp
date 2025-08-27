@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include "../SDCard.h"
 #include "SDCardChannelData.h"
 #include "../AVIParser/AVIParser.h"
