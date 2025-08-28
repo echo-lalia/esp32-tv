@@ -7,6 +7,13 @@
 #include "Displays/Display.h"
 #include <list>
 
+
+#ifndef AUDIO_BUFFER_SAMPLES
+#define AUDIO_BUFFER_SAMPLES 1000
+#endif
+#define BYTES_PER_SAMPLE 8
+
+
 void VideoPlayer::_framePlayerTask(void *param)
 {
   VideoPlayer *player = (VideoPlayer *)param;
@@ -193,8 +200,8 @@ void VideoPlayer::framePlayerTask()
 
 void VideoPlayer::audioPlayerTask()
 {
-  size_t bufferLength = 16000;
-  uint8_t *audioData = (uint8_t *)malloc(16000);
+  size_t bufferLength = AUDIO_BUFFER_SAMPLES * BYTES_PER_SAMPLE;
+  uint8_t *audioData = (uint8_t *)malloc(bufferLength);
   while (true)
   {
     if (mState != VideoPlayerState::PLAYING)
@@ -215,9 +222,9 @@ void VideoPlayer::audioPlayerTask()
     }
     if (audioLength > 0) {
       // play the audio
-      for(int i=0; i<audioLength; i+=1000) {
-        mAudioOutput->write(audioData + i, min(1000, audioLength - i));
-        mCurrentAudioSample += min(1000, audioLength - i);
+      for(int i=0; i<audioLength; i+=AUDIO_BUFFER_SAMPLES) {
+        mAudioOutput->write(audioData + i, min(AUDIO_BUFFER_SAMPLES, audioLength - i));
+        mCurrentAudioSample += min(AUDIO_BUFFER_SAMPLES, audioLength - i);
         if (mState != VideoPlayerState::PLAYING)
         {
           mCurrentAudioSample = 0;
