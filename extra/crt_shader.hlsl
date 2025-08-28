@@ -35,14 +35,14 @@
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 0.2
-0.01
+0.005
 
 
 //!PARAM static_noise_intensity
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
-0.02
+0.01
 
 
 //!PARAM aberration
@@ -153,6 +153,9 @@ vec4 hook()
     vec2 UV = HOOKED_pos;
     float TIME = float(frame) / DEFAULT_FPS;
 
+	// Move the roll effect left and right (- and +) based on time
+	float distort_direction = sin(TIME * roll_speed * 0.61) + sin(TIME * roll_speed * 0.491 - 0.5);
+	distort_direction *= distort_intensity;
 
     vec2 uv = warp(UV); // Warp the uv. uv will be used in most cases instead of UV to keep the warping
 	vec2 text_uv = uv;
@@ -168,7 +171,7 @@ vec4 hook()
 		// Create more lines of a different size and apply to the first set of lines. This creates a bit of variation.
 		roll_line *= roll_line * smoothstep(0.3, 0.9, sin(uv.y * roll_size * roll_variation - (time * roll_speed * roll_variation) ) );
 		// Distort the UV where where the lines are
-		roll_uv = vec2(( roll_line * distort_intensity * (1.-UV.x)), 0.0);
+		roll_uv = vec2(( roll_line * distort_direction * (1.-UV.x)), 0.0);
 	}
 
     vec4 text;

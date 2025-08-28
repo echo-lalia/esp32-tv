@@ -66,7 +66,7 @@ def _step_down_fps_fancy(fps: int, in_tag: str|None = None, out_tag: str|None = 
     fltr += f"[FPS{fps}B] minterpolate=fps={fps}:mi_mode=blend [SMOOTH{fps}];"
 
     # Finally, blend the alpha-overed stream onto the main stream again, with a reduced opacity (in an effort to make effect more subtle)
-    fltr += f"[SHARP{fps}][SMOOTH{fps}] blend=all_mode=normal:all_opacity=0.3 {out_str}"
+    fltr += f"[SHARP{fps}][SMOOTH{fps}] blend=all_mode=normal:all_opacity=0.5 {out_str}"
 
     return fltr
 
@@ -77,10 +77,10 @@ def process_video_file(
         input_path,
         output_path,
         size: tuple[int, int] = (280, 240),
-        framerates: tuple[int, ...] = (12,),
+        framerates: tuple[int, ...] = (24, 12),
         sharpen=True,
         crt_shader=True,
-        jpeg_quality=29,
+        jpeg_quality=31,
         audio_rate=16000
         ):
 
@@ -103,7 +103,7 @@ def process_video_file(
     # filter_string = f'-filter_complex "{base_filter}{base_to_sharp}{base_to_smooth}{smooth_to_darkedges_to_smedges}{blend_sharp_smedges_output}"'
     filter_string = f'-filter_complex "{base_filter}{_fps_filters}{_crt_shader}"'
 
-    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
+    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -t 500 {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
     print()
     print(ffmpeg_cmd)
     print()

@@ -157,7 +157,7 @@ void VideoPlayer::framePlayerTask()
     if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
       if (frameReady){
         // Draw the frame!
-        Serial.println("Frame is ready!");
+        // Serial.println("Frame is ready!");
         mDisplay.startWrite();
         if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
         {
@@ -169,7 +169,7 @@ void VideoPlayer::framePlayerTask()
           #endif
           mJpeg.decode(0, 0, 0);
           mJpeg.close();
-          Serial.println("Frame drawn.");
+          // Serial.println("Frame drawn.");
         }
         frameReady = false;
         frameDrawn = true;
@@ -182,7 +182,7 @@ void VideoPlayer::framePlayerTask()
     if (frameDrawn){
       frameTimes.push_back(millis());
       // keep the frame rate elapsed time to 5 seconds
-      while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 5000) {
+      while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 2000) {
         frameTimes.pop_front();
       }
       
@@ -191,7 +191,7 @@ void VideoPlayer::framePlayerTask()
         mDisplay.drawChannel(mChannelData->getChannelNumber());
       }
       #if CORE_DEBUG_LEVEL > 0
-      mDisplay.drawFPS(frameTimes.size() / 5);
+      mDisplay.drawFPS(frameTimes.size() / 2);
       #endif
       mDisplay.endWrite();
     }
@@ -237,7 +237,7 @@ void VideoPlayer::audioPlayerTask()
     }
     else
     {
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+      vTaskDelay(10 / portTICK_PERIOD_MS);
     }
   }
 }
@@ -257,20 +257,20 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
       if (header.chunkType == AUDIO_CHUNK){
         // read audio data
         int audioLength = parser->getNextChunk(header, (uint8_t **) buffer, bufferSize);
-        Serial.println("Got audio chunk");
+        // Serial.println("Got audio chunk");
         return audioLength;
       }
 
       else if (header.chunkType == VIDEO_CHUNK){
-        
 
         // TODO: instead of immediately swapping the buffers, just read, and set a flag to swap the buffers later (to prevent waiting too long for the lock)
+        // read video data
+        jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
+        // Serial.println("Got video chunk");
 
         // Take the mutex lock and swap the read/decode buffers
         if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
-          // read video data
-          jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
-          Serial.println("Got video chunk");
+          if (frameReady) {Serial.println("Overwriting video chunk!");}
 
           uint8_t *tempBuffer = jpegDecodeBuffer;
           size_t tempBufferLength = jpegDecodeBufferLength;
