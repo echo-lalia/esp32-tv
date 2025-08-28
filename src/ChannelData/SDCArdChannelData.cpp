@@ -3,11 +3,11 @@
 #include "SDCardChannelData.h"
 #include "../AVIParser/AVIParser.h"
 
-SDCardChannelData::SDCardChannelData(SDCard *sdCard, const char *aviPath): mSDCard(sdCard), mAviPath(aviPath) {
+ChannelData::ChannelData(SDCard *sdCard, const char *aviPath): mSDCard(sdCard), mAviPath(aviPath) {
 
 }
 
-bool SDCardChannelData::fetchChannelData() {
+bool ChannelData::fetchChannelData() {
   // check the the sd card is mounted
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
@@ -23,7 +23,7 @@ bool SDCardChannelData::fetchChannelData() {
 }
 
 
-void SDCardChannelData::setChannel(int channel) {
+void ChannelData::setChannel(int channel) {
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
     return;

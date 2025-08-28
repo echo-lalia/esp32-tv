@@ -9,16 +9,34 @@
 // #define PROFILE_CHECKPOINT(text) new_time = millis(); Serial.printf(text ": %dms\n", new_time - start_time); start_time = new_time;
 
 
-typedef struct
-{
-  char chunkId[4];
-  unsigned int chunkSize;
-} ChunkHeader;
+// enum chunk_type {AUDIO_CHUNK, VIDEO_CHUNK, RIFF_CHUNK, LIST_CHUNK, OTHER_CHUNK};
+
+
+
 
 void readChunk(FILE *file, ChunkHeader *header)
 {
-  fread(&header->chunkId, 4, 1, file);
+  char chunkId[4];
+  fread(chunkId, 4, 1, file);
   fread(&header->chunkSize, 4, 1, file);
+
+  if (strncmp(chunkId, "00dc", 4) == 0){
+    header->chunkType = VIDEO_CHUNK;
+  } 
+  else if (strncmp(chunkId, "01wb", 4) == 0){
+    // Serial.println("Reading AudioChunkHeader.");
+    header->chunkType = AUDIO_CHUNK;
+  }
+  else if (strncmp(chunkId, "RIFF", 4) == 0){
+    header->chunkType = RIFF_CHUNK;
+  }
+  else if (strncmp(chunkId, "LIST", 4) == 0){
+    header->chunkType = LIST_CHUNK;
+  }
+  else {
+    header->chunkType = OTHER_CHUNK;
+  }
+  
   // Serial.printf("ChunkId %c%c%c%c, size %u\n",
   //        header->chunkId[0], header->chunkId[1],
   //        header->chunkId[2], header->chunkId[3],
@@ -81,7 +99,7 @@ bool AVIParser::open()
   ChunkHeader header;
   // Read RIFF header
   readChunk(mFile, &header);
-  if (strncmp(header.chunkId, "RIFF", 4) != 0)
+  if (header.chunkType != RIFF_CHUNK)
   {
     Serial.println("Not a valid AVI file.");
     fclose(mFile);
@@ -116,7 +134,7 @@ bool AVIParser::open()
       break;
     }
     // is it a LIST chunk?
-    if (strncmp(header.chunkId, "LIST", 4) == 0)
+    if (header.chunkType == LIST_CHUNK)
     {
       if (isMoviListChunk(header.chunkSize))
       {
@@ -142,142 +160,68 @@ bool AVIParser::open()
 }
 
 
-size_t AVIParser::skipNextChunk()
-{
+ChunkHeader AVIParser::getNextHeader(){
   // check if the file is open
   if (!mFile)
   {
     Serial.println("No file open.");
-    return 0;
+    return EMPTY_HEADER;
   }
   // did we find the movi list?
   if (mMoviListPosition == 0) {
     Serial.println("No movi list found.");
-    return 0;
+    return EMPTY_HEADER;
   }
-  // get the next chunk of data from the list
-  ChunkHeader header;
-  while (mMoviListLength > 0)
-  {
+
+  if (mMoviListLength > 0){
+    // get the next chunk of data from the list
+    ChunkHeader header;
     readChunk(mFile, &header);
     mMoviListLength -= 8;
-    bool isVideoChunk = strncmp(header.chunkId, "00dc", 4) == 0;
-    bool isAudioChunk = strncmp(header.chunkId, "01wb", 4) == 0;
-    if (mRequiredChunkType == AVIChunkType::VIDEO && isVideoChunk ||
-        mRequiredChunkType == AVIChunkType::AUDIO && isAudioChunk)
-    {
-      // we've got the required chunk - copy it into the provided buffer
-      // reallocate the buffer if necessary
-      // if (header.chunkSize > bufferLength)
-      // {
-      //   // Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
-      //   // Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
-      //   *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
-      // }
-      // copy the chunk data
-      // fread(*buffer, header.chunkSize, 1, mFile);
-
-      // We got the required chunk. Skip it and return
-      fseek(mFile, header.chunkSize, SEEK_CUR);
-      
-      mMoviListLength -= header.chunkSize;
-      // handle any padding bytes
-      if (header.chunkSize % 2 != 0)
-      {
-        fseek(mFile, 1, SEEK_CUR);
-        mMoviListLength--;
-      }
-      return header.chunkSize;
-    }
-    else
-    {
-      // the data is not what was required - skip over the chunk
-      fseek(mFile, header.chunkSize, SEEK_CUR);
-      mMoviListLength -= header.chunkSize;
-    }
-    // handle any padding bytes
-    if (header.chunkSize % 2 != 0)
-    {
-      fseek(mFile, 1, SEEK_CUR);
-      mMoviListLength--;
-    }
+    return header;
   }
-  // no more chunks
-  Serial.println("No more data");
-  return 0;
+  else {
+    // no more chunks
+    Serial.println("No more data");
+    return EMPTY_HEADER;
+  }
+
 }
 
 
-size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
+size_t AVIParser::getNextChunk(ChunkHeader header, uint8_t **buffer, size_t &bufferLength, bool skipChunk)
 {
-  // check if the file is open
-  if (!mFile)
+  if (skipChunk)
   {
-    Serial.println("No file open.");
-    return 0;
+    // the data is not what was required - skip over the chunk
+    fseek(mFile, header.chunkSize, SEEK_CUR);
+    mMoviListLength -= header.chunkSize;
+    // handle any padding bytes
+    if (header.chunkSize % 2 != 0){
+      fseek(mFile, 1, SEEK_CUR);
+      mMoviListLength--;
+    }
   }
-  // did we find the movi list?
-  if (mMoviListPosition == 0) {
-    Serial.println("No movi list found.");
-    return 0;
-  }
-  // get the next chunk of data from the list
-  ChunkHeader header;
-  while (mMoviListLength > 0)
+  else
   {
-    // PROFILE_START;
-    
-    
-    readChunk(mFile, &header);
-    // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("readChunk");}
-
-    mMoviListLength -= 8;
-    bool isVideoChunk = strncmp(header.chunkId, "00dc", 4) == 0;
-    bool isAudioChunk = strncmp(header.chunkId, "01wb", 4) == 0;
-    if (mRequiredChunkType == AVIChunkType::VIDEO && isVideoChunk ||
-        mRequiredChunkType == AVIChunkType::AUDIO && isAudioChunk)
+    // we've got the required chunk - copy it into the provided buffer
+    if (header.chunkSize > bufferLength)
     {
-      // we've got the required chunk - copy it into the provided buffer
-      // reallocate the buffer if necessary
-      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("enter loop");}
-
-      if (header.chunkSize > bufferLength)
-      {
-        Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
-        *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
-        bufferLength = header.chunkSize;
-      }
-      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("realloc");}
-
-      // copy the chunk data
-      fread(*buffer, header.chunkSize, 1, mFile);
-      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("read into buffer");}
-      
-      mMoviListLength -= header.chunkSize;
-      // handle any padding bytes
-      if (header.chunkSize % 2 != 0)
-      {
-        fseek(mFile, 1, SEEK_CUR);
-        mMoviListLength--;
-      }
-      // if (mRequiredChunkType == AVIChunkType::VIDEO){PROFILE_CHECKPOINT("finishUp");}
-
-      return header.chunkSize;
+      Serial.printf("Buffer size %d is too small to read next chunk. Reallocating %d bytes.\n", bufferLength, header.chunkSize);
+      *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
+      bufferLength = header.chunkSize;
+      Serial.println("Reallocated!");
     }
-    else
-    {
-      // the data is not what was required - skip over the chunk
-      fseek(mFile, header.chunkSize, SEEK_CUR);
-      mMoviListLength -= header.chunkSize;
-    }
+    // copy the chunk data
+    fread(*buffer, header.chunkSize, 1, mFile);
+    
+    mMoviListLength -= header.chunkSize;
     // handle any padding bytes
     if (header.chunkSize % 2 != 0)
     {
       fseek(mFile, 1, SEEK_CUR);
       mMoviListLength--;
     }
+    return header.chunkSize;
   }
-  // no more chunks
-  Serial.println("No more data");
-  return 0;
 }

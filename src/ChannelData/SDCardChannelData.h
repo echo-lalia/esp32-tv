@@ -1,14 +1,15 @@
 #pragma once
 
-#include "ChannelData.h"
 #include <vector>
 #include <string>
 
 class SDCard;
 class AVIParser;
 
-class SDCardChannelData : public ChannelData
+class ChannelData
 {
+protected:
+  int mChannelNumber = 0;
 private:
   const char *mChannelInfoURL = NULL;
   std::vector<std::string> mAviFiles;
@@ -17,7 +18,7 @@ private:
   SDCard *mSDCard;
   const char *mAviPath;
 public:
-  SDCardChannelData(SDCard *sdCard, const char *aviPath);
+  ChannelData(SDCard *sdCard, const char *aviPath);
   bool fetchChannelData();
   int getChannelCount() {
     return mAviFiles.size();
@@ -33,4 +34,5 @@ public:
     return mCurrentChannelVideoParser;
   };
   void setChannel(int channel);
+  int getChannelNumber() { return mChannelNumber; }
 };

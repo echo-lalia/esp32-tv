@@ -8,8 +8,8 @@
 #include "AudioOutput/PWMTimerOutput.h"
 #include "AudioOutput/PDMOutput.h"
 #include "ChannelData/SDCardChannelData.h"
-#include "AudioSource/SDCardAudioSource.h"
-#include "VideoSource/SDCardVideoSource.h"
+// #include "AudioSource/SDCardAudioSource.h"
+// #include "VideoSource/SDCardVideoSource.h"
 #include "AVIParser/AVIParser.h"
 #include "SDCard.h"
 #include "Button.h"
@@ -82,9 +82,9 @@ void setup()
       delay(1000);
     }
   }
-  channelData = new SDCardChannelData(card, "/");
-  audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
-  videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
+  channelData = new ChannelData(card, "/");
+  // audioSource = new SDCardAudioSource((ChannelData *) channelData);
+  // videoSource = new SDCardVideoSource((ChannelData *) channelData);
 
 
 #ifdef USE_DAC_AUDIO
