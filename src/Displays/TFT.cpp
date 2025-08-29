@@ -5,7 +5,7 @@
 
 
 #ifndef TFT_ROTATION
-#define TFT_ROTATION 3
+#define TFT_ROTATION 1
 #endif
 
 
@@ -20,7 +20,7 @@ TFT::TFT(): tft(new TFT_eSPI()) {
   #endif
 
   tft->init();
-  tft->setRotation(3);
+  tft->setRotation(TFT_ROTATION);
   tft->fillScreen(TFT_BLACK);
   #ifdef USE_DMA
   tft->initDMA();

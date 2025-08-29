@@ -27,8 +27,8 @@ void VideoPlayer::_audioPlayerTask(void *param)
   player->audioPlayerTask();
 }
 
-VideoPlayer::VideoPlayer(ChannelData *channelData, VideoSource *videoSource, AudioSource *audioSource, Display &display, AudioOutput *audioOutput)
-: mChannelData(channelData), mVideoSource(videoSource), mAudioSource(audioSource), mDisplay(display), mState(VideoPlayerState::STOPPED), mAudioOutput(audioOutput)
+VideoPlayer::VideoPlayer(ChannelData *channelData, Display &display, AudioOutput *audioOutput)
+: mChannelData(channelData), mDisplay(display), mState(VideoPlayerState::STOPPED), mAudioOutput(audioOutput)
 {
 }
 

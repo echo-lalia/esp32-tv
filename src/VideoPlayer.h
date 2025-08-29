@@ -14,8 +14,8 @@
 class Display;
 class AudioOutput;
 
-class VideoSource;
-class AudioSource;
+// class VideoSource;
+// class AudioSource;
 
 class VideoPlayer {
   private:
@@ -27,9 +27,9 @@ class VideoPlayer {
     JPEGDEC mJpeg;
 
     // video source
-    VideoSource *mVideoSource = NULL;
+    // VideoSource *mVideoSource = NULL;
     // audio source
-    AudioSource *mAudioSource = NULL;
+    // AudioSource *mAudioSource = NULL;
     // channel information
     ChannelData *mChannelData = NULL;
 
@@ -65,7 +65,7 @@ class VideoPlayer {
     friend int _doDraw(JPEGDRAW *pDraw);
 
   public:
-    VideoPlayer(ChannelData *channelData, VideoSource *videoSource, AudioSource *audioSource, Display &display, AudioOutput *audioOutput);
+    VideoPlayer(ChannelData *channelData, Display &display, AudioOutput *audioOutput);
     void setChannel(int channelIndex);
     void start();
     void play();

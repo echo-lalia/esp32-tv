@@ -8,8 +8,6 @@
 #include "AudioOutput/PWMTimerOutput.h"
 #include "AudioOutput/PDMOutput.h"
 #include "ChannelData/SDCardChannelData.h"
-// #include "AudioSource/SDCardAudioSource.h"
-// #include "VideoSource/SDCardVideoSource.h"
 #include "AVIParser/AVIParser.h"
 #include "SDCard.h"
 #include "Button.h"
@@ -24,18 +22,18 @@
 #warning "No DMA - Drawing may be slower"
 #endif
 
-VideoSource *videoSource = NULL;
-AudioSource *audioSource = NULL;
+// VideoSource *videoSource = NULL;
+// AudioSource *audioSource = NULL;
 VideoPlayer *videoPlayer = NULL;
 AudioOutput *audioOutput = NULL;
 ChannelData *channelData = NULL;
-#ifdef LED_MATRIX
-Matrix display;
-#else
+// #ifdef LED_MATRIX
+// Matrix display;
+// #else
 TFT display;
-#endif
+// #endif
 
-TwoWire wire2(0);
+// TwoWire wire2(0);
 
 void setup()
 {
@@ -122,8 +120,8 @@ void setup()
 #endif
   videoPlayer = new VideoPlayer(
     channelData,
-    videoSource,
-    audioSource,
+    // videoSource,
+    // audioSource,
     display,
     audioOutput
   );
@@ -140,6 +138,8 @@ void setup()
   delay(500);
   videoPlayer->play();
 
+
+  audioOutput->setVolume(5);
 }
 
 int channel = 0;
@@ -179,6 +179,7 @@ void channelUp() {
 
 void loop()
 {
+  
 
 #ifdef HAS_BUTTONS
   if (buttonLeft()) {

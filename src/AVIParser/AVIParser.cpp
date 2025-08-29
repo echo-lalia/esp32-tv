@@ -224,4 +224,5 @@ size_t AVIParser::getNextChunk(ChunkHeader header, uint8_t **buffer, size_t &buf
     }
     return header.chunkSize;
   }
+  return 0;
 }
