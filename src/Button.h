@@ -1,7 +1,21 @@
 #include <Arduino.h>
 
-int _btn_left=-1;
-int _btn_right=-1;
+// setup change_channel pin.
+#ifdef CHANGE_CHANNEL_PIN
+  #ifndef CHANGE_CHANNEL_PIN_MODE
+  #define CHANGE_CHANNEL_PIN_MODE INPUT
+  #endif
+  #ifndef CHANGE_CHANNEL_TRIGGER_VAL
+  #define CHANGE_CHANNEL_TRIGGER_VAL LOW
+  #endif
+#endif
+
+
+bool change_channel_pressed = false;
+
+
+// int _btn_left=-1;
+// int _btn_right=-1;
 
 bool buttonRight(){
 #ifdef BUTTON_R
@@ -35,6 +49,9 @@ bool buttonPowerOff() {
 }
 
 void buttonInit(){
+  #ifdef CHANGE_CHANNEL_PIN
+  pinMode(CHANGE_CHANNEL_PIN, CHANGE_CHANNEL_PIN_MODE);
+  #endif
 #ifdef BUTTON_L
   #ifdef BUTTON_R
   pinMode(BUTTON_L, INPUT_PULLUP);
@@ -44,16 +61,18 @@ void buttonInit(){
 }
 
 void buttonLoop(){
-  static uint_fast64_t buttonTimeStamp = 0;
-  if (millis() - buttonTimeStamp > 20) {
-    buttonTimeStamp = millis();
-    #ifdef BUTTON_L
-      #ifdef BUTTON_R
-    _btn_right = digitalRead(BUTTON_R);
-    _btn_left = digitalRead(BUTTON_L);
-      #endif
-    #endif
-  }
+  change_channel_pressed = (digitalRead(CHANGE_CHANNEL_PIN) == CHANGE_CHANNEL_TRIGGER_VAL);
+
+  // static uint_fast64_t buttonTimeStamp = 0;
+  // if (millis() - buttonTimeStamp > 20) {
+  //   buttonTimeStamp = millis();
+  //   #ifdef BUTTON_L
+  //     #ifdef BUTTON_R
+  //   _btn_right = digitalRead(BUTTON_R);
+  //   _btn_left = digitalRead(BUTTON_L);
+  //     #endif
+  //   #endif
+  // }
 }
 
 

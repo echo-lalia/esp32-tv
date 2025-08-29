@@ -14,10 +14,6 @@
 #include <Wire.h>
 
 
-#ifndef HAS_BUTTONS
-#warning "No Input - Will default to playing channel 0"
-#endif
-
 #ifndef USE_DMA
 #warning "No DMA - Drawing may be slower"
 #endif
@@ -34,6 +30,11 @@ TFT display;
 // #endif
 
 // TwoWire wire2(0);
+
+void randomChannel();
+int prevChannel = 99999;
+int channel = 99999;
+
 
 void setup()
 {
@@ -133,16 +134,19 @@ void setup()
     Serial.println("Failed to fetch channel data");
     delay(1000);
   }
-  // default to first channel
-  videoPlayer->setChannel(0);
-  delay(500);
-  videoPlayer->play();
+
+  randomChannel();
+
+  // // default to first channel
+  // videoPlayer->setChannel(0);
+  // delay(500);
+  // videoPlayer->play();
 
 
   audioOutput->setVolume(5);
 }
 
-int channel = 0;
+
 
 void volumeUp() {
   audioOutput->volumeUp();
@@ -177,32 +181,93 @@ void channelUp() {
   Serial.printf("CHANNEL_UP %d\n", channel);
 }
 
+
+
+// get a random int between 0, and the given limit, excluding 2 numbers.
+uint_fast32_t randomExceptTwo(uint_fast32_t limit, uint_fast32_t exclude1, uint_fast32_t exclude2){
+  // This math requires that the two excludes are different.
+  if (exclude1 == exclude2){
+      exclude2 = limit + 1;
+    }
+  uint_fast32_t excludeLower = min(exclude1, exclude2);
+  uint_fast32_t excludeUpper = max(exclude1, exclude2);
+
+  // If the bigger exclude can be reached, our range is smaller by one.
+  if (excludeUpper >= 0 and excludeUpper < limit) {limit--;}
+  // If the smaller exclude can be reached, our range shrinks by one.
+  if (excludeLower >= 0 and excludeLower < limit) {limit--;}
+
+  uint_fast32_t rand = random(limit);
+
+  // re-add to the random value if it is equal to or above each limit
+  if (rand >= excludeLower) {rand++;}
+  if (rand >= excludeUpper) {rand++;}
+
+  return rand;
+}
+
+
+// Get a random channel, attempting to avoid repeats.
+int getRandomChannel(){
+  int channelCount = channelData->getChannelCount();
+  // If there's only one option; return it.
+  if (channelCount == 1) {return 0;}
+  // Otherwise, if there's only two options, return the one that ISNT the current channel.
+  if (channelCount == 2) {
+    return (channel == 0) ? 1 : 0;
+  }
+  // If there's 3 or more channels, randomly pick a channel, but DONT pick the current or previous channel.
+  Serial.printf("randomExceptTwo(%d, %d, %d\n)", channelCount, channel, prevChannel);
+  return randomExceptTwo(channelCount, channel, prevChannel);
+}
+
+
+void randomChannel() {
+  videoPlayer->playStatic();
+  delay(500);
+  int newChannel = getRandomChannel();
+  prevChannel = channel;
+  channel = newChannel;
+
+  videoPlayer->setChannel(channel);
+  videoPlayer->play();
+  Serial.printf("randomChannel: %d\n", channel);
+}
+
+
 void loop()
 {
   
+  if (change_channel_pressed){
+    randomChannel();
+  }
 
-#ifdef HAS_BUTTONS
-  if (buttonLeft()) {
-    channelDown();
-  }
-  if (buttonRight()) {
-    channelUp();
-  }
-  if (buttonUp()) {
-    volumeUp();
-  }
-  if (buttonDown()) {
-    volumeDown();
-  }
-  if (buttonPowerOff()) {
-    Serial.println("POWER OFF");
-    delay(500);
-    powerDeepSeep();
-  }
   buttonLoop();
-#else
-    // important this needs to stay otherwise we are constantly polling the IR Remote
-    // and there's no time for anything else to run.
-    delay(200);
-#endif
+
+  delay(100);
+
+// #ifdef HAS_BUTTONS
+//   if (buttonLeft()) {
+    // channelDown();
+//   }
+//   if (buttonRight()) {
+//     channelUp();
+//   }
+//   if (buttonUp()) {
+//     volumeUp();
+//   }
+//   if (buttonDown()) {
+//     volumeDown();
+//   }
+//   if (buttonPowerOff()) {
+//     Serial.println("POWER OFF");
+//     delay(500);
+//     powerDeepSeep();
+//   }
+//   buttonLoop();
+// #else
+//     // important this needs to stay otherwise we are constantly polling the IR Remote
+//     // and there's no time for anything else to run.
+//     delay(200);
+// #endif
 }
