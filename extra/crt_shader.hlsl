@@ -35,14 +35,14 @@
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 0.2
-0.005
+0.0025
 
 
 //!PARAM static_noise_intensity
 //!TYPE float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
-0.01
+0.005
 
 
 //!PARAM aberration

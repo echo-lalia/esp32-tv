@@ -261,12 +261,10 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
         return audioLength;
       }
 
-      else if (header.chunkType == VIDEO_CHUNK){
-
-        // TODO: instead of immediately swapping the buffers, just read, and set a flag to swap the buffers later (to prevent waiting too long for the lock)
+      // Handle processing video chunks (only if they aren't empty!)
+      else if (header.chunkType == VIDEO_CHUNK && header.chunkSize > 0){
         // read video data
         jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
-        // Serial.println("Got video chunk");
 
         // Take the mutex lock and swap the read/decode buffers
         if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){

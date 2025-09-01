@@ -7,9 +7,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("input_path")
 parser.add_argument("output_path")
 parser.add_argument("--size", nargs=2, type=int, default=[280, 240], help="If provided, should be two integers representing the width and height of the output video.")
-parser.add_argument("--fps", nargs='*', type=int, default=[12], help="The target FPS to convert to. Multiple values can be provided to step down the fps in increments.")
+parser.add_argument("--fps_max", type=int, default=20, help="The maximum target FPS to allow.")
+parser.add_argument("--fps_min", type=int, default=6, help="The minimum target FPS to allow.")
+parser.add_argument("--frame_drop", type=float, default=0.5, help="The aggresiveness of the frame dropping filter (from 0.0 to 1.0). Lower values drop less frames, higher values drop more.")
 parser.add_argument("--audio_rate", type=int, default=16000, help="The audio rate to use for the output video. This must match the audio rate set in your platformio.ini file.")
-parser.add_argument("--quality", type=int, default=26, help="The jpeg quality to use for the video. Should be a value from 0-31, where lower numbers are higher quality, and higher numbers have a smaller file size.")
+parser.add_argument("--quality", type=int, default=31, help="The jpeg quality to use for the video. Should be a value from 0-31, where lower numbers are higher quality, and higher numbers have a smaller file size.")
 parser.add_argument("--crt", action="store_true", help="If provided, enable the CRT filter.")
 parser.add_argument("--sharpen", action="store_true", help="If provided, adds a sharpening filter to the video, which can improve detail on the low-resolution output.")
 parser.add_argument("--dry_run", action="store_true", help="Just print the changes that would be made without actually making them.")
@@ -19,7 +21,9 @@ args = parser.parse_args()
 input_path = args.input_path
 output_path = args.output_path
 size = args.size
-fps_steps = args.fps
+fps_max = args.fps_max
+fps_min = args.fps_min
+frame_drop = args.frame_drop
 audio_rate = args.audio_rate
 jpeg_quality = args.quality
 enable_crt = args.crt
@@ -35,6 +39,15 @@ CRT_SHADER_PATH = os.path.join(os.path.dirname(__file__), "crt_shader.hlsl")
 OUT_EXTENSION = "avi"
 
 
+def mix(val1, val2, fac:float = 0.5) -> float:
+    """Mix two values to the weight of fac."""
+    return (val2 * fac) + (val1 * (1.0 - fac))
+
+
+def roundi(val: float) -> int:
+    return int(round(val))
+
+
 def _format_ffmpeg_path(path: str) -> str:
     """Escape special ffmpeg filter characters so that a file path can be input."""
     _COLON = r"\\:"
@@ -42,58 +55,55 @@ def _format_ffmpeg_path(path: str) -> str:
     return path.replace("\\", _BSLASH).replace(":", _COLON)
 
 
-def _step_down_fps_fancy(fps: int, in_tag: str|None = None, out_tag: str|None = None) -> str:
-    """Return a filter graph that steps reduces to the target fps and applies a smear frame like effect."""
-    in_str = f"[{in_tag}]" if in_tag else ""
-    out_str = f"[{out_tag}];" if out_tag else ""
-    # Split the video into two streams
-    fltr = f"{in_str}split[FPS{fps}A][FPS{fps}B];"
-    # Convert the first stream using "dup" mode (no smoothing)
-    fltr += f"[FPS{fps}A] minterpolate=fps={fps}:mi_mode=dup [SHARP{fps}];"
+def _get_framerate_filter(fps_min: int, fps_max: int, frame_drop: float) -> str:
+    """Get a filter that first limits the framerate, then drops similar frames."""
+    # Aggresive:
+    # frac=0.9:lo=64*128:hi=64*192:max=20
+    # Subtle:
+    # frac=0.3:lo=64*16:hi=64*32:max=5
+    
+    _hi = roundi(mix(64*16, 64*192, frame_drop))  # If any 8*8 area has at least this difference, the frame is kept.  
+    _lo = roundi(mix(64*5, 64*128, frame_drop))   # If an 8*8 area has at least this difference, it counts for `_frac`
+    _frac = mix(0.3, 0.9, frame_drop)             # If at least this fraction of 8*8 areas beat the `_lo` threshold, the frame is kept.
+    _max = roundi(fps_max / fps_min)  # Max number of frames to drop (in a row)
 
-    # Convert the second stream using "blend" mode to apply smoothing
-    fltr += f"[FPS{fps}B] minterpolate=fps={fps}:mi_mode=blend [SMOOTH{fps}];"
-
-    # Finally, blend the alpha-overed stream onto the main stream again, with a reduced opacity (in an effort to make effect more subtle)
-    fltr += f"[SHARP{fps}][SMOOTH{fps}] blend=all_mode=normal:all_opacity=0.5 {out_str}"
-
-    return fltr
+    return f", minterpolate=fps={fps_max}:mi_mode=dup, mpdecimate=frac={_frac}:lo={_lo}:hi={_hi}:max={_max}"
 
 
 def process_video_file(
         input_path,
         output_path,
         size: tuple[int, int] = (280, 240),
-        framerates: tuple[int, ...] = (24, 12),
+        fps_max: int = 20,
+        fps_min: int = 6,
+        frame_drop: float = 0.5,
         sharpen=True,
         crt_shader=True,
         jpeg_quality=31,
         audio_rate=16000
-        ):
+    ):
     
     # Ensure the target directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # Scale then crop (and optionally apply an unsharp mask to highligh edges), before splitting into two streams
+    # Scale and crop the video stream
+    base_filter = f"scale={size[0]}:{size[1]}:force_original_aspect_ratio=increase, crop={size[0]}:{size[1]}"
+    # Optional sharpness filter.
     _sharp_filter = ", cas=strength=0.9, unsharp=luma_msize_x=13:luma_msize_y=13:luma_amount=1.0" if sharpen else ""
-    base_filter = f"[INPUT]scale={size[0]}:{size[1]}:force_original_aspect_ratio=increase, crop={size[0]}:{size[1]}{_sharp_filter}[BASE];"
-
-    # Create a chain of fps-stepdown filters as defined by `framerates`
-    _fps_filters = ""
-    for idx, fps in enumerate(framerates):
-        _in_tag = "BASE" if idx == 0 else f"FPS{framerates[idx-1]}"
-        _out_tag = None if idx == len(framerates)-1 else f"FPS{fps}"
-        _fps_filters += _step_down_fps_fancy(fps, _in_tag, _out_tag)
-
+    # Limit the framerate, then drop similar frames.
+    _framerate_filter = _get_framerate_filter(fps_min, fps_max, frame_drop)
 
     # # Init vulkan if using a shader (this is required by libplacebo) and set shader filter.
     _shader_init_hw = "-init_hw_device vulkan" if crt_shader else ""
     _crt_shader = f", libplacebo=custom_shader_path={_format_ffmpeg_path(CRT_SHADER_PATH)}" if crt_shader else ""
 
-    # filter_string = f'-filter_complex "{base_filter}{base_to_sharp}{base_to_smooth}{smooth_to_darkedges_to_smedges}{blend_sharp_smedges_output}"'
-    filter_string = f'-filter_complex "{base_filter}{_fps_filters}{_crt_shader}"'
+    filter_string = f'-vf "{base_filter}{_sharp_filter}{_framerate_filter}{_crt_shader}"'
 
-    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -y {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
+    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -y {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -fps_mode vfr -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
+
+    print()
+    print(ffmpeg_cmd)
+    print()
 
     subprocess.run(ffmpeg_cmd)
 
@@ -212,7 +222,9 @@ if __name__ == "__main__":
     if dry_run:
         print("Options:\n---")
         print(f"size:            {size}")
-        print(f"fps_steps:       {fps_steps}")
+        print(f"fps_max:         {fps_max}")
+        print(f"fps_min:         {fps_min}")
+        print(f"frame_drop:      {frame_drop}")
         print(f"audio_rate:      {audio_rate}")
         print(f"jpeg_quality:    {jpeg_quality}")
         print(f"enable_crt:      {enable_crt}")
@@ -229,7 +241,9 @@ if __name__ == "__main__":
             process_video_file(
                 inpt, outpt,
                 size=size,
-                framerates=fps_steps,
+                fps_max=fps_max,
+                fps_min=fps_min,
+                frame_drop=frame_drop,
                 sharpen=enable_sharpen,
                 crt_shader=enable_crt,
                 jpeg_quality=jpeg_quality,
