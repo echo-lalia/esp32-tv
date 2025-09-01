@@ -54,6 +54,7 @@ void VideoPlayer::start()
 
 void VideoPlayer::setChannel(int channel)
 {
+  Serial.println("Setting channel in VideoPlayer::setChannel");
   mChannelData->setChannel(channel);
   // set the audio sample to 0 - TODO - move this somewhere else?
   mCurrentAudioSample = 0;
@@ -85,6 +86,19 @@ void VideoPlayer::stop()
   mDisplay.fillScreen(DisplayColors::BLACK);
 }
 
+void VideoPlayer::_setPlayingFinished()
+{
+  if (mState == VideoPlayerState::PLAYING_FINISHED)
+  {
+    return;
+  }
+  Serial.println("Playing finished.");
+  mState = VideoPlayerState::PLAYING_FINISHED;
+  frameReady = false;
+  mCurrentAudioSample = 0;
+  mDisplay.fillScreen(DisplayColors::BLACK);
+}
+
 void VideoPlayer::pause()
 {
   if (mState == VideoPlayerState::PAUSED)
@@ -107,8 +121,8 @@ void VideoPlayer::playStatic()
 
 
 // double buffer the dma drawing otherwise we get corruption
-uint16_t *dmaBuffer[2] = {NULL, NULL};
-int dmaBufferIndex = 0;
+// uint16_t *dmaBuffer[2] = {NULL, NULL};
+// int dmaBufferIndex = 0;
 int _doDraw(JPEGDRAW *pDraw)
 {
   VideoPlayer *player = (VideoPlayer *)pDraw->pUser;
@@ -116,51 +130,39 @@ int _doDraw(JPEGDRAW *pDraw)
   return 1;
 }
 
-static unsigned short x = 12345, y = 6789, z = 42, w = 1729;
+// static unsigned short x = 12345, y = 6789, z = 42, w = 1729;
 
-unsigned short xorshift16()
-{
-  unsigned short t = x ^ (x << 5);
-  x = y;
-  y = z;
-  z = w;
-  w = w ^ (w >> 1) ^ t ^ (t >> 3);
-  return w & 0xFFFF;
-}
+// unsigned short xorshift16()
+// {
+//   unsigned short t = x ^ (x << 5);
+//   x = y;
+//   y = z;
+//   z = w;
+//   w = w ^ (w >> 1) ^ t ^ (t >> 3);
+//   return w & 0xFFFF;
+// }
 
 void VideoPlayer::framePlayerTask()
 {
-  // uint16_t *staticBuffer = NULL;
-  // uint8_t *jpegBuffer = NULL;
-  // size_t jpegBufferLength = 0;
-  // size_t jpegLength = 0;
   // used for calculating frame rate
   std::list<int> frameTimes;
   while (true)
   {
-    if (mState == VideoPlayerState::STOPPED || mState == VideoPlayerState::PAUSED)
+    if (mState != VideoPlayerState::PLAYING)
     {
       // nothing to do - just wait
       vTaskDelay(100 / portTICK_PERIOD_MS);
       continue;
     }
-    // get the next frame
-    // if (!mVideoSource->getVideoFrame(&jpegBuffer, jpegBufferLength, jpegLength))
-    // {
-    //   // no frame ready yet
-    //   vTaskDelay(10 / portTICK_PERIOD_MS);
-    //   continue;
-    // }
 
     bool frameDrawn = false;
     // Take the mutex lock and draw a frame if one is ready. Otherwise just delay.
-    if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
-      if (frameReady){
+    if (xSemaphoreTake(jpegBufferMutex, 100)){
+      if (frameReady && mState == VideoPlayerState::PLAYING){
         // Draw the frame!
-        // Serial.println("Frame is ready!");
-        mDisplay.startWrite();
         if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
         {
+          mDisplay.startWrite();
           mJpeg.setUserPointer(this);
           #ifdef LED_MATRIX
           mJpeg.setPixelType(RGB565_LITTLE_ENDIAN);
@@ -168,21 +170,22 @@ void VideoPlayer::framePlayerTask()
           mJpeg.setPixelType(RGB565_BIG_ENDIAN);
           #endif
           mJpeg.decode(0, 0, 0);
-          mJpeg.close();
-          // Serial.println("Frame drawn.");
+          // mJpeg.close();
+          // mDisplay.endWrite();
         }
+
         frameReady = false;
         frameDrawn = true;
       }
+      
       xSemaphoreGive(jpegBufferMutex);
-
     }
 
     // If we drew a new frame above, finish any final tasks that dont require the mutex.
     if (frameDrawn){
       frameTimes.push_back(millis());
       // keep the frame rate elapsed time to 5 seconds
-      while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 2000) {
+      while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 1000) {
         frameTimes.pop_front();
       }
       
@@ -191,7 +194,7 @@ void VideoPlayer::framePlayerTask()
         mDisplay.drawChannel(mChannelData->getChannelNumber());
       }
       #if CORE_DEBUG_LEVEL > 0
-      mDisplay.drawFPS(frameTimes.size() / 2);
+      mDisplay.drawFPS(frameTimes.size());
       #endif
       mDisplay.endWrite();
     }
@@ -215,10 +218,10 @@ void VideoPlayer::audioPlayerTask()
     int audioLength = _getAudioSamples(&audioData, bufferLength, mCurrentAudioSample);
     // have we reached the end of the channel?
     if (audioLength == 0) {
-      // we want to loop the video so reset the channel data and start again
-      stop();
-      setChannel(mChannelData->getChannelNumber());
-      play();
+      // I don't really understand why, but if we MUST give the frame player task time to finish drawing,
+      // otherwise, the program will halt.
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+      _setPlayingFinished();
       continue;
     }
     if (audioLength > 0) {
@@ -229,10 +232,8 @@ void VideoPlayer::audioPlayerTask()
         if (mState != VideoPlayerState::PLAYING)
         {
           mCurrentAudioSample = 0;
-          // mVideoSource->updateAudioTime(0);
           break;
         }
-        // mVideoSource->updateAudioTime(1000 * mCurrentAudioSample / AUDIO_RATE);
       }
     }
     else
@@ -254,20 +255,22 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
     {
       header = parser->getNextHeader();
 
+      // skip empty chunks
+      if (header.chunkSize == 0) {continue;}
+
+      // read audio data
       if (header.chunkType == AUDIO_CHUNK){
-        // read audio data
         int audioLength = parser->getNextChunk(header, (uint8_t **) buffer, bufferSize);
-        // Serial.println("Got audio chunk");
         return audioLength;
       }
 
-      // Handle processing video chunks (only if they aren't empty!)
-      else if (header.chunkType == VIDEO_CHUNK && header.chunkSize > 0){
+      // Handle processing video chunks.
+      else if (header.chunkType == VIDEO_CHUNK){
         // read video data
         jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
 
         // Take the mutex lock and swap the read/decode buffers
-        if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
+        if (xSemaphoreTake(jpegBufferMutex, 100)){
           if (frameReady) {Serial.println("Overwriting video chunk!");}
 
           uint8_t *tempBuffer = jpegDecodeBuffer;
@@ -282,16 +285,17 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
           jpegReadBufferLength = tempBufferLength;
           jpegReadLength = tempLength;
           frameReady = true;
+
           xSemaphoreGive(jpegBufferMutex);
         }
         else{
-          parser->getNextChunk(header, (uint8_t **) jpegReadBuffer, jpegReadBufferLength, true);
-          Serial.println("Failed to get semaphore and skipped video chunk.");
+          Serial.println("_getAudioSamples failed to get semaphore and skipped video chunk.");
         }
       }
 
       else {
         // this chunk is of no use to us. Skip it!
+        Serial.println("Found useless chunk.");
         parser->getNextChunk(header, (uint8_t **) buffer, bufferSize, true);
       }
 

@@ -143,7 +143,7 @@ void setup()
   // videoPlayer->play();
 
 
-  audioOutput->setVolume(5);
+  // audioOutput->setVolume(4);
 }
 
 
@@ -237,37 +237,14 @@ void randomChannel() {
 
 void loop()
 {
-  
-  if (change_channel_pressed){
+  if (change_channel_pressed || videoPlayer->isFinished()){
+    Serial.println("Setting random channel.");
     randomChannel();
+    videoPlayer->play();
   }
 
   buttonLoop();
 
   delay(100);
 
-// #ifdef HAS_BUTTONS
-//   if (buttonLeft()) {
-    // channelDown();
-//   }
-//   if (buttonRight()) {
-//     channelUp();
-//   }
-//   if (buttonUp()) {
-//     volumeUp();
-//   }
-//   if (buttonDown()) {
-//     volumeDown();
-//   }
-//   if (buttonPowerOff()) {
-//     Serial.println("POWER OFF");
-//     delay(500);
-//     powerDeepSeep();
-//   }
-//   buttonLoop();
-// #else
-//     // important this needs to stay otherwise we are constantly polling the IR Remote
-//     // and there's no time for anything else to run.
-//     delay(200);
-// #endif
 }

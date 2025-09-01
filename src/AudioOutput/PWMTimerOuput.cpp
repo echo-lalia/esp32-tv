@@ -103,7 +103,7 @@ void PWMTimerOutput::onTimer()
   {
     mCount++;
     // get the first sample from the buffer
-    uint32_t sample = (uint32_t(mBuffer[mCurrentIndex]) << 3);
+    uint32_t sample = (uint32_t(mBuffer[mCurrentIndex])) << 3;
     mCurrentIndex++;
     ledcWrite(2, sample * mVolume / 10);
   }

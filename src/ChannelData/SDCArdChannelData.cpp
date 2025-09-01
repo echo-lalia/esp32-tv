@@ -14,23 +14,33 @@ bool ChannelData::fetchChannelData() {
     return false;
   }
   // get the list of AVI files
+  // if (takeControl()) {
   mAviFiles = mSDCard->listFiles(mAviPath, ".avi");
+  // giveControl();
   if (mAviFiles.size() == 0) {
     Serial.println("No AVI files found");
     return false;
   }
   return true;
+  // }
+  return false;
 }
 
 
 void ChannelData::setChannel(int channel) {
+  // if (!takeControl()) {
+  //   Serial.println("Failed to take control of channel data.");
+  //   return;
+  // }
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
+    // giveControl();
     return;
   }
   // check that the channel is valid
   if (channel < 0 || channel >= mAviFiles.size()) {
     Serial.printf("Invalid channel %d\n", channel);
+    // giveControl();
     return;
   }
   // close any open AVI files
@@ -60,4 +70,5 @@ void ChannelData::setChannel(int channel) {
     mCurrentChannelAudioParser = NULL;
   }
   mChannelNumber = channel;
+  // giveControl();
 }

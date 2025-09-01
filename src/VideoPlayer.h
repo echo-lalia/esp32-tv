@@ -69,6 +69,8 @@ class VideoPlayer {
     void setChannel(int channelIndex);
     void start();
     void play();
+    void _setPlayingFinished();
+    bool isFinished() {return (mState == VideoPlayerState::PLAYING_FINISHED);}
     void stop();
     void pause();
     void playStatic();

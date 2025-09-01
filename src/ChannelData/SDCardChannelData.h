@@ -15,6 +15,10 @@ private:
   std::vector<std::string> mAviFiles;
   AVIParser *mCurrentChannelAudioParser = NULL;
   AVIParser *mCurrentChannelVideoParser = NULL;
+
+  // Mutex lock to protect control of current channel and parser.
+  // SemaphoreHandle_t controlMutex = xSemaphoreCreateMutex();
+
   SDCard *mSDCard;
   const char *mAviPath;
 public:
@@ -27,6 +31,14 @@ public:
     // we don't know the length of the AVI file
     return -1;
   };
+  // bool takeControl() {
+  //   Serial.println("Someone took control of ChannelData.");
+  //   return xSemaphoreTake(controlMutex, portMAX_DELAY);
+  // }
+  // bool giveControl() {
+  //   Serial.println("Released control of ChannelData.");
+  //   return xSemaphoreGive(controlMutex);
+  // }
   AVIParser *getAudioParser() {
     return mCurrentChannelAudioParser;
   };
