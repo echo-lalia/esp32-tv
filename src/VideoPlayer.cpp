@@ -50,10 +50,10 @@ void VideoPlayer::start()
       "Frame Player",
       1024 * 16,
       this,
-      2,
+      1,
       NULL,
       0);
-  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 1024 * 16, this, 2, NULL, 1);
+  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 1024 * 16, this, 1, NULL, 1);
 }
 
 void VideoPlayer::setChannel(int channel)
@@ -87,7 +87,10 @@ void VideoPlayer::stop()
   mState = VideoPlayerState::STOPPED;
   // mVideoSource->setState(VideoPlayerState::STOPPED);
   mCurrentAudioSample = 0;
-  mDisplay.fillScreen(DisplayColors::BLACK);
+  if (xSemaphoreTake(displayControlMutex, 100)) {
+    mDisplay.fillScreen(DisplayColors::BLACK);
+    xSemaphoreGive(displayControlMutex);
+  }
 }
 
 void VideoPlayer::_setPlayingFinished()
@@ -100,7 +103,10 @@ void VideoPlayer::_setPlayingFinished()
   mState = VideoPlayerState::PLAYING_FINISHED;
   frameReady = false;
   mCurrentAudioSample = 0;
-  mDisplay.fillScreen(DisplayColors::BLACK);
+  if (xSemaphoreTake(displayControlMutex, 100)) {
+    mDisplay.fillScreen(DisplayColors::BLACK);
+    xSemaphoreGive(displayControlMutex);
+  }
 }
 
 void VideoPlayer::pause()
@@ -148,18 +154,22 @@ void VideoPlayer::framePlayerTask()
       for (int i=0; i<staticBufLength; i++){
         staticBuf[i] = random();
       }
-      mDisplay.startWrite();
-      // Draw static one hline at a time.
-      for(int y=0; y<mDisplay.height(); y++){
-        // iterate over static buffer to quickly pseudo re-randomize the pixels
-        uint32_t lineRandom = random();
-        for (int i=0; i<staticBufLength; i++){
-          staticBuf[i] = staticBuf[i] ^ lineRandom;
+      if (xSemaphoreTake(displayControlMutex, 0)) {
+        mDisplay.startWrite();
+        // Draw static one hline at a time.
+        for(int y=0; y<mDisplay.height(); y++){
+          // iterate over static buffer to quickly pseudo re-randomize the pixels
+          uint32_t lineRandom = random();
+          for (int i=0; i<staticBufLength; i++){
+            staticBuf[i] = staticBuf[i] ^ lineRandom;
+          }
+          mDisplay.drawPixels(0, y, VIDEO_WIDTH, 1, (uint16_t *)staticBuf);
         }
-        mDisplay.drawPixels(0, y, VIDEO_WIDTH, 1, (uint16_t *)staticBuf);
+        // Done drawing static this frame, short delay and then move on.
+        mDisplay.endWrite();
+        xSemaphoreGive(displayControlMutex);
       }
-      // Done drawing static this frame, short delay and then move on.
-      mDisplay.endWrite();
+        
       vTaskDelay(4 / portTICK_PERIOD_MS);
       continue;
     }
@@ -178,12 +188,15 @@ void VideoPlayer::framePlayerTask()
         // Draw the frame!
         if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
         {
-          mDisplay.startWrite();
-          mJpeg.setUserPointer(this);
-          mJpeg.setPixelType(RGB565_BIG_ENDIAN);
-          mJpeg.decode(0, 0, 0);
-          // mJpeg.close();
-          // mDisplay.endWrite();
+          if (xSemaphoreTake(displayControlMutex, 100)){
+            mDisplay.startWrite();
+            mJpeg.setUserPointer(this);
+            mJpeg.setPixelType(RGB565_BIG_ENDIAN);
+            mJpeg.decode(0, 0, 0);
+            // mJpeg.close();
+            // mDisplay.endWrite();
+            xSemaphoreGive(displayControlMutex);
+          }
         }
 
         frameReady = false;
@@ -202,13 +215,18 @@ void VideoPlayer::framePlayerTask()
       }
       
       // show channel indicator 
-      if (millis() - mChannelVisible < 2000) {
-        mDisplay.drawChannel(mChannelData->getChannelNumber());
+      if (xSemaphoreTake(displayControlMutex, 100)) {
+        // mDisplay.startWrite();
+        if (millis() - mChannelVisible < 2000) {
+          mDisplay.drawChannel(mChannelData->getChannelNumber());
+        }
+        #if CORE_DEBUG_LEVEL > 0
+        mDisplay.drawFPS(frameTimes.size());
+        #endif
+        mDisplay.endWrite();
+        xSemaphoreGive(displayControlMutex);
       }
-      #if CORE_DEBUG_LEVEL > 0
-      mDisplay.drawFPS(frameTimes.size());
-      #endif
-      mDisplay.endWrite();
+      
     }
   }
 }
@@ -261,7 +279,7 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
   // read the audio data into the buffer
   AVIParser *parser = mChannelData->getAudioParser();
   if (parser) {
-    ChunkHeader header;
+    ChunkHeader header = {OTHER_CHUNK, 0};
     
     while (header.chunkType != EMPTY_CHUNK)
     {

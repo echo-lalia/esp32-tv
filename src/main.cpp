@@ -240,12 +240,6 @@ void loop()
 {
   if (change_channel_pressed || videoPlayer->isFinished()){
     Serial.println("Setting random channel.");
-    #ifdef AUDIO_ENABLE_PIN
-    // Disable audio
-    Serial.printf("Disabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
-    digitalWrite(AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
-    #endif
-    esp_restart();
     videoPlayer->stop();
     delay(100);
     if (videoPlayer->takeMutex()){

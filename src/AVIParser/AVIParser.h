@@ -24,7 +24,7 @@ private:
   AVIChunkType mRequiredChunkType;
   FILE *mFile = NULL;
   long mMoviListPosition = 0;
-  long mMoviListLength;
+  long mMoviListLength = 0;
 
   bool isMoviListChunk(unsigned int chunkSize);
 

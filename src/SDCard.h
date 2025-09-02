@@ -11,7 +11,7 @@
 class SDCard
 {
 private:
-  sdmmc_card_t *m_card;
+  sdmmc_card_t *m_card = NULL;
   #ifdef USE_SDIO
     sdmmc_host_t m_host = SDMMC_HOST_DEFAULT();
   #else

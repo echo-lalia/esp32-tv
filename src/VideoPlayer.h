@@ -24,7 +24,9 @@ class VideoPlayer {
 
     // video playing
     Display &mDisplay;
-    JPEGDEC mJpeg;
+    // Mutex for ensuring one-at-a-time access to display communication.
+    SemaphoreHandle_t displayControlMutex = xSemaphoreCreateMutex();
+    JPEGDEC mJpeg = JPEGDEC();
 
     // video source
     // VideoSource *mVideoSource = NULL;
