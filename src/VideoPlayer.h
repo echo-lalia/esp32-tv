@@ -6,6 +6,8 @@
 #include "JPEGDEC.h"
 #include "ChannelData/SDCardChannelData.h"
 #include "VideoPlayerState.h"
+#include <list>
+
 
 #ifndef AUDIO_RATE
 #define AUDIO_RATE 16000
@@ -39,6 +41,9 @@ class VideoPlayer {
     int mCurrentAudioSample = 0;
     AudioOutput *mAudioOutput = NULL;
 
+    // Buffer used for quickly drawing "static" (random noise) to the display.
+    uint32_t *staticBuf = (uint32_t*) malloc(VIDEO_WIDTH * 2);
+    size_t staticBufLength = VIDEO_WIDTH / 2;
 
     // The buffer to use for jpeg frame decoding.
     uint8_t *jpegDecodeBuffer = NULL;
@@ -57,9 +62,14 @@ class VideoPlayer {
     // Otherwise the audio task only writes to the "read" buffer, and the frame task only reads from the "decode" buffer.
     SemaphoreHandle_t jpegBufferMutex = xSemaphoreCreateMutex();
 
+    // used for calculating frame rate
+    std::list<int> frameTimes;
+
     static void _framePlayerTask(void *param);
     static void _audioPlayerTask(void *param);
 
+    void _drawStatic();
+    void _drawFrame();
     void framePlayerTask();
     void audioPlayerTask();
     int _getAudioSamples(uint8_t **buffer, size_t &bufferSize, int currentAudioSample);
@@ -76,6 +86,4 @@ class VideoPlayer {
     void stop();
     void pause();
     void playStatic();
-    bool takeMutex() {return xSemaphoreTake(jpegBufferMutex, portMAX_DELAY);}
-    void giveMutex() {xSemaphoreGive(jpegBufferMutex);}
 };

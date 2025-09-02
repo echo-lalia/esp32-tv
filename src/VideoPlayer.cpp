@@ -6,7 +6,7 @@
 // #include "VideoSource/VideoSource.h"
 // #include "AudioSource/AudioSource.h"
 #include "Displays/Display.h"
-#include <list>
+
 
 
 #ifndef AUDIO_BUFFER_SAMPLES
@@ -132,11 +132,76 @@ void VideoPlayer::playStatic()
 
 int _doDraw(JPEGDRAW *pDraw)
 {
-  // Serial.println("Drawing...");
   VideoPlayer *player = (VideoPlayer *)pDraw->pUser;
-  // if (player->mState != VideoPlayerState::PLAYING) {return 1;}
   player->mDisplay.drawPixels(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
   return 1;
+}
+
+
+void VideoPlayer::_drawStatic()
+{
+  if (xSemaphoreTake(displayControlMutex, 0)) {
+    // Fill the static buffer with random pixels
+    for (int i=0; i<staticBufLength; i++){
+      staticBuf[i] = random();
+    }
+    mDisplay.startWrite();
+    // Draw static one hline at a time.
+    for(int y=0; y<mDisplay.height(); y++){
+      // iterate over static buffer to quickly pseudo re-randomize the pixels
+      uint32_t lineRandom = random();
+      for (int i=0; i<staticBufLength; i++){
+        staticBuf[i] = staticBuf[i] ^ lineRandom;
+      }
+      // Draw hline of static to the display.
+      mDisplay.drawPixels(0, y, VIDEO_WIDTH, 1, (uint16_t *)staticBuf);
+    }
+    // Done drawing static this frame.
+    mDisplay.endWrite();
+    xSemaphoreGive(displayControlMutex);
+  }
+}
+
+
+void VideoPlayer::_drawFrame()
+{
+  bool frameDrawn = false;
+  // Take the jpeg mutex lock to check if a frame is ready, and draw if it is.
+  if (xSemaphoreTake(jpegBufferMutex, 100)){
+    // If the frame is ready, also take the display control mutex.
+    if (frameReady && xSemaphoreTake(displayControlMutex, 10)){
+      // Draw the frame!
+      if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
+      {
+        mDisplay.startWrite();
+        mJpeg.setUserPointer(this);
+        mJpeg.setPixelType(RGB565_BIG_ENDIAN);
+        mJpeg.decode(0, 0, 0);
+      }
+      frameReady = false;
+      frameDrawn = true;
+    }
+    xSemaphoreGive(jpegBufferMutex);
+  }
+
+  // If we drew a new frame above, finish any final tasks that dont require the mutex.
+  if (frameDrawn){
+    frameTimes.push_back(millis());
+    // keep the frame rate elapsed time to 5 seconds
+    while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 1000) {
+      frameTimes.pop_front();
+    }
+    // show channel indicator
+    if (millis() - mChannelVisible < 2000) {
+      mDisplay.drawChannel(mChannelData->getChannelNumber());
+    }
+    #if CORE_DEBUG_LEVEL > 0
+    mDisplay.drawFPS(frameTimes.size());
+    #endif
+    mDisplay.endWrite();
+    // Return display control.
+    xSemaphoreGive(displayControlMutex);
+  }
 }
 
 
@@ -144,90 +209,25 @@ void VideoPlayer::framePlayerTask()
 {
   size_t staticBufLength = VIDEO_WIDTH / 2;
   uint32_t *staticBuf = (uint32_t*) malloc(VIDEO_WIDTH * 2);
-  // used for calculating frame rate
-  std::list<int> frameTimes;
+  
   while (true)
   {
     // Draw random static to the display.
     if (mState == VideoPlayerState::STATIC){
-      // Fill the static buffer with random pixels
-      for (int i=0; i<staticBufLength; i++){
-        staticBuf[i] = random();
-      }
-      if (xSemaphoreTake(displayControlMutex, 0)) {
-        mDisplay.startWrite();
-        // Draw static one hline at a time.
-        for(int y=0; y<mDisplay.height(); y++){
-          // iterate over static buffer to quickly pseudo re-randomize the pixels
-          uint32_t lineRandom = random();
-          for (int i=0; i<staticBufLength; i++){
-            staticBuf[i] = staticBuf[i] ^ lineRandom;
-          }
-          mDisplay.drawPixels(0, y, VIDEO_WIDTH, 1, (uint16_t *)staticBuf);
-        }
-        // Done drawing static this frame, short delay and then move on.
-        mDisplay.endWrite();
-        xSemaphoreGive(displayControlMutex);
-      }
-        
+      _drawStatic();
       vTaskDelay(4 / portTICK_PERIOD_MS);
       continue;
     }
 
-    if (mState != VideoPlayerState::PLAYING)
-    {
-      // nothing to do - just wait
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+    // Draw a video frame if one is available.
+    if (mState == VideoPlayerState::PLAYING){
+      _drawFrame();
       continue;
     }
 
-    bool frameDrawn = false;
-    // Take the mutex lock and draw a frame if one is ready. Otherwise just delay.
-    if (xSemaphoreTake(jpegBufferMutex, 100)){
-      if (frameReady && mState == VideoPlayerState::PLAYING){
-        // Draw the frame!
-        if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
-        {
-          if (xSemaphoreTake(displayControlMutex, 100)){
-            mDisplay.startWrite();
-            mJpeg.setUserPointer(this);
-            mJpeg.setPixelType(RGB565_BIG_ENDIAN);
-            mJpeg.decode(0, 0, 0);
-            // mJpeg.close();
-            // mDisplay.endWrite();
-            xSemaphoreGive(displayControlMutex);
-          }
-        }
-
-        frameReady = false;
-        frameDrawn = true;
-      }
-      
-      xSemaphoreGive(jpegBufferMutex);
-    }
-
-    // If we drew a new frame above, finish any final tasks that dont require the mutex.
-    if (frameDrawn){
-      frameTimes.push_back(millis());
-      // keep the frame rate elapsed time to 5 seconds
-      while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 1000) {
-        frameTimes.pop_front();
-      }
-      
-      // show channel indicator 
-      if (xSemaphoreTake(displayControlMutex, 100)) {
-        // mDisplay.startWrite();
-        if (millis() - mChannelVisible < 2000) {
-          mDisplay.drawChannel(mChannelData->getChannelNumber());
-        }
-        #if CORE_DEBUG_LEVEL > 0
-        mDisplay.drawFPS(frameTimes.size());
-        #endif
-        mDisplay.endWrite();
-        xSemaphoreGive(displayControlMutex);
-      }
-      
-    }
+    // nothing to do - just wait
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    continue;
   }
 }
 

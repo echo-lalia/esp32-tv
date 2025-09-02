@@ -242,11 +242,9 @@ void loop()
     Serial.println("Setting random channel.");
     videoPlayer->stop();
     delay(100);
-    if (videoPlayer->takeMutex()){
-      randomChannel();
-      videoPlayer->play();
-      videoPlayer->giveMutex();
-    }
+    randomChannel();
+    videoPlayer->play();
+    
   }
 
   buttonLoop();

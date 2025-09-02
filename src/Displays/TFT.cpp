@@ -97,7 +97,7 @@ void TFT::drawSDCardFailed() {
 
 void TFT::drawFPS(int fps) {
     // show the frame rate in the top right
-    tft->setCursor(width() - 50, 20);
+    tft->setCursor(VIDEO_WIDTH - 50, 20);
     tft->setTextColor(TFT_GREEN, TFT_BLACK);
     tft->printf("%02d", fps);
 }
