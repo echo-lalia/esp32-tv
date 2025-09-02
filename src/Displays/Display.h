@@ -5,6 +5,7 @@
 class Display {
   public:
   virtual void drawPixels(int x, int y, int width, int height, uint16_t *pixels) = 0;
+  virtual void drawPixel(int x, int y, uint16_t color);
   virtual void startWrite() = 0;
   virtual void endWrite() = 0;
   virtual int width() = 0;

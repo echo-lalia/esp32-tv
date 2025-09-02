@@ -32,9 +32,11 @@ TFT::TFT(): tft(new TFT_eSPI()) {
 
 void TFT::drawPixels(int x, int y, int width, int height, uint16_t *pixels) {
   int numPixels = width * height;
-  if (dmaBuffer[dmaBufferIndex] == NULL)
-  {
+  if (dmaBuffer[dmaBufferIndex] == NULL) {
     dmaBuffer[dmaBufferIndex] = (uint16_t *)malloc(numPixels * 2);
+  }
+  else {
+    dmaBuffer[dmaBufferIndex] = (uint16_t *)realloc(dmaBuffer[dmaBufferIndex], numPixels * 2);
   }
   memcpy(dmaBuffer[dmaBufferIndex], pixels, numPixels * 2);
   #ifdef USE_DMA
@@ -47,6 +49,10 @@ void TFT::drawPixels(int x, int y, int width, int height, uint16_t *pixels) {
   tft->pushPixels(dmaBuffer[dmaBufferIndex], numPixels);
   #endif
   dmaBufferIndex = (dmaBufferIndex + 1) % 2;
+}
+
+void TFT::drawPixel(int x, int y, uint16_t color){
+  tft->drawPixel(x, y, color);
 }
 
 void TFT::startWrite() {

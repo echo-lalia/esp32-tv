@@ -13,6 +13,7 @@ private:
 public:
   TFT();
   void drawPixels(int x, int y, int width, int height, uint16_t *pixels);
+  void drawPixel(int x, int y, uint16_t color);
   void startWrite();
   void endWrite();
   int width();

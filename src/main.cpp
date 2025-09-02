@@ -133,6 +133,9 @@ void setup()
     delay(1000);
   }
 
+  videoPlayer->playStatic();
+  delay(1000);
+
   randomChannel();
 
   // // default to first channel

@@ -14,6 +14,10 @@
 #endif
 #define BYTES_PER_SAMPLE 8
 
+#ifndef VIDEO_WIDTH
+#define VIDEO_WIDTH TFT_WIDTH
+#endif
+
 
 void VideoPlayer::_framePlayerTask(void *param)
 {
@@ -44,12 +48,12 @@ void VideoPlayer::start()
   xTaskCreatePinnedToCore(
       _framePlayerTask,
       "Frame Player",
-      10000,
+      1024 * 16,
       this,
-      1,
+      2,
       NULL,
       0);
-  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 10000, this, 1, NULL, 1);
+  xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 1024 * 16, this, 2, NULL, 1);
 }
 
 void VideoPlayer::setChannel(int channel)
@@ -120,9 +124,6 @@ void VideoPlayer::playStatic()
 }
 
 
-// double buffer the dma drawing otherwise we get corruption
-// uint16_t *dmaBuffer[2] = {NULL, NULL};
-// int dmaBufferIndex = 0;
 int _doDraw(JPEGDRAW *pDraw)
 {
   // Serial.println("Drawing...");
@@ -132,24 +133,37 @@ int _doDraw(JPEGDRAW *pDraw)
   return 1;
 }
 
-// static unsigned short x = 12345, y = 6789, z = 42, w = 1729;
-
-// unsigned short xorshift16()
-// {
-//   unsigned short t = x ^ (x << 5);
-//   x = y;
-//   y = z;
-//   z = w;
-//   w = w ^ (w >> 1) ^ t ^ (t >> 3);
-//   return w & 0xFFFF;
-// }
 
 void VideoPlayer::framePlayerTask()
 {
+  size_t staticBufLength = VIDEO_WIDTH / 2;
+  uint32_t *staticBuf = (uint32_t*) malloc(VIDEO_WIDTH * 2);
   // used for calculating frame rate
   std::list<int> frameTimes;
   while (true)
   {
+    // Draw random static to the display.
+    if (mState == VideoPlayerState::STATIC){
+      // Fill the static buffer with random pixels
+      for (int i=0; i<staticBufLength; i++){
+        staticBuf[i] = random();
+      }
+      mDisplay.startWrite();
+      // Draw static one hline at a time.
+      for(int y=0; y<mDisplay.height(); y++){
+        // iterate over static buffer to quickly pseudo re-randomize the pixels
+        uint32_t lineRandom = random();
+        for (int i=0; i<staticBufLength; i++){
+          staticBuf[i] = staticBuf[i] ^ lineRandom;
+        }
+        mDisplay.drawPixels(0, y, VIDEO_WIDTH, 1, (uint16_t *)staticBuf);
+      }
+      // Done drawing static this frame, short delay and then move on.
+      mDisplay.endWrite();
+      vTaskDelay(4 / portTICK_PERIOD_MS);
+      continue;
+    }
+
     if (mState != VideoPlayerState::PLAYING)
     {
       // nothing to do - just wait
