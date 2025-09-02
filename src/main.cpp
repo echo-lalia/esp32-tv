@@ -224,8 +224,6 @@ int getRandomChannel(){
 
 
 void randomChannel() {
-  videoPlayer->playStatic();
-  delay(500);
   int newChannel = getRandomChannel();
   prevChannel = channel;
   channel = newChannel;
