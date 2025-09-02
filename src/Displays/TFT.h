@@ -1,6 +1,7 @@
 #pragma once
 #ifndef LED_MATRIX
 #include "Display.h"
+#include <TFT_eSPI.h>
 
 class TFT_eSPI;
 
@@ -16,7 +17,7 @@ public:
   void endWrite();
   int width();
   int height();
-  void fillScreen(uint16_t color);
+  void fillScreen(uint16_t color = TFT_BLACK);
   void drawChannel(int channelIndex);
   void drawTuningText();
   void drawFPS(int fps);

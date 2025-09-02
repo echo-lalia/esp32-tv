@@ -74,4 +74,6 @@ class VideoPlayer {
     void stop();
     void pause();
     void playStatic();
+    bool takeMutex() {return xSemaphoreTake(jpegBufferMutex, portMAX_DELAY);}
+    void giveMutex() {xSemaphoreGive(jpegBufferMutex);}
 };

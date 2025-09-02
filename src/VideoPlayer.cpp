@@ -125,7 +125,9 @@ void VideoPlayer::playStatic()
 // int dmaBufferIndex = 0;
 int _doDraw(JPEGDRAW *pDraw)
 {
+  // Serial.println("Drawing...");
   VideoPlayer *player = (VideoPlayer *)pDraw->pUser;
+  // if (player->mState != VideoPlayerState::PLAYING) {return 1;}
   player->mDisplay.drawPixels(pDraw->x, pDraw->y, pDraw->iWidth, pDraw->iHeight, pDraw->pPixels);
   return 1;
 }
@@ -164,11 +166,7 @@ void VideoPlayer::framePlayerTask()
         {
           mDisplay.startWrite();
           mJpeg.setUserPointer(this);
-          #ifdef LED_MATRIX
-          mJpeg.setPixelType(RGB565_LITTLE_ENDIAN);
-          #else
           mJpeg.setPixelType(RGB565_BIG_ENDIAN);
-          #endif
           mJpeg.decode(0, 0, 0);
           // mJpeg.close();
           // mDisplay.endWrite();
@@ -270,7 +268,7 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
         jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
 
         // Take the mutex lock and swap the read/decode buffers
-        if (xSemaphoreTake(jpegBufferMutex, 100)){
+        if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
           if (frameReady) {Serial.println("Overwriting video chunk!");}
 
           uint8_t *tempBuffer = jpegDecodeBuffer;

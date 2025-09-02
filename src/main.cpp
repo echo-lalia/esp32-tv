@@ -49,14 +49,12 @@ void setup()
 
   #ifdef AUDIO_ENABLE_PIN
   // Enable audio (if required)
+  #ifndef AUDIO_ENABLE_VAL
+  #define AUDIO_ENABLE_VAL LOW
+  #endif
   pinMode(AUDIO_ENABLE_PIN, OUTPUT);
-  #ifdef AUDIO_ENABLE_VAL
   Serial.printf("Enabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
   digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
-  #else
-  Serial.printf("Enabling audio by setting Pin %d LOW", AUDIO_ENABLE_PIN);
-  digitalWrite(AUDIO_ENABLE_PIN, LOW);
-  #endif
   #endif
 
 
@@ -143,7 +141,7 @@ void setup()
   // videoPlayer->play();
 
 
-  // audioOutput->setVolume(4);
+  audioOutput->setVolume(4);
 }
 
 
@@ -239,8 +237,19 @@ void loop()
 {
   if (change_channel_pressed || videoPlayer->isFinished()){
     Serial.println("Setting random channel.");
-    randomChannel();
-    videoPlayer->play();
+    #ifdef AUDIO_ENABLE_PIN
+    // Disable audio
+    Serial.printf("Disabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
+    digitalWrite(AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
+    #endif
+    esp_restart();
+    videoPlayer->stop();
+    delay(100);
+    if (videoPlayer->takeMutex()){
+      randomChannel();
+      videoPlayer->play();
+      videoPlayer->giveMutex();
+    }
   }
 
   buttonLoop();

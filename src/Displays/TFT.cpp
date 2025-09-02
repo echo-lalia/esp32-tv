@@ -1,6 +1,5 @@
 #ifndef LED_MATRIX
 #include <Arduino.h>
-#include <TFT_eSPI.h>
 #include "TFT.h"
 
 
