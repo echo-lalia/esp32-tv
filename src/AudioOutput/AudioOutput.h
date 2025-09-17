@@ -9,7 +9,7 @@
 class AudioOutput
 {
 protected:
-  int mVolume = 10;
+  int mVolume = 255;
 public:
   AudioOutput();
   virtual void start(uint32_t sample_rate) = 0;
@@ -20,13 +20,17 @@ public:
   virtual int16_t process_sample(int16_t sample) { return sample; }
   virtual void write(uint8_t *samples, int count) = 0;
 
+  int getVolume(){
+    return mVolume;
+  }
+
   void setVolume(int volume){
-    if (volume > 10 || volume < 0) mVolume = 10;
+    if (volume > 255 || volume < 0) mVolume = 255;
     else mVolume = volume;
   }
 
   void volumeUp() {
-    if (mVolume == 10) {
+    if (mVolume == 255) {
       return;
     }
     mVolume++;

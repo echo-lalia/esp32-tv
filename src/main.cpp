@@ -46,6 +46,9 @@ void setup()
   Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
   buttonInit();
 
+  #ifdef VOLUME_POT_PIN
+  pinMode(VOLUME_POT_PIN, INPUT);
+  #endif
 
   #ifdef AUDIO_ENABLE_PIN
   // Enable audio (if required)
@@ -144,7 +147,7 @@ void setup()
   // videoPlayer->play();
 
 
-  audioOutput->setVolume(4);
+  // audioOutput->setVolume(4);
 }
 
 
@@ -234,19 +237,41 @@ void randomChannel() {
 }
 
 
+// Returns `current` moved toward `target` by at most `step`, without overshooting. (works with positive step values)
+int moveToward(int current, int target, int step)
+{
+    if (current < target) {
+        int next = current + step;
+        return (next > target) ? target : next;
+    } else if (current > target) {
+        int next = current - step;
+        return (next < target) ? target : next;
+    } else {
+        return target; // already there
+    }
+}
+
+
 void loop()
 {
-  if (change_channel_pressed || videoPlayer->isFinished()){
+  if (changeChannelPressed || videoPlayer->isFinished()){
     Serial.println("Setting random channel.");
     videoPlayer->stop();
     delay(100);
     randomChannel();
     videoPlayer->play();
-    
   }
+
+  #ifdef VOLUME_POT_PIN
+  if (currentVolume != audioOutput->getVolume()){
+    // Set volume, but with a limited step size (reduces popping as volume changes)
+    int maxStep = max(audioOutput->getVolume() / 5, 5);
+    audioOutput->setVolume(moveToward(audioOutput->getVolume(), currentVolume, maxStep));
+  }
+  #endif
 
   buttonLoop();
 
-  delay(100);
+  delay(50);
 
 }

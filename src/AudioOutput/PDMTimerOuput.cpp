@@ -97,7 +97,7 @@ void PDMTimerOutput::write(uint8_t *samples, int count)
         mSecondBuffer = (int8_t *)realloc(mSecondBuffer, count);
         // copy them into the second buffer
         for(int i = 0; i < count; i++) {
-          mSecondBuffer[i] = (samples[i] - 128) * mVolume / 10;
+          mSecondBuffer[i] = (samples[i] - 128) * mVolume / 255;
         }
         // second buffer is now full of samples
         mSecondBufferLength = count;

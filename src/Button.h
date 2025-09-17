@@ -10,9 +10,16 @@
   #endif
 #endif
 
+// setup audio potentiometer pin
+#ifdef VOLUME_POT_PIN
+  #ifndef VOLUME_POT_MAX
+  #define VOLUME_POT_MAX 4095
+  #endif
+#endif
 
-bool change_channel_pressed = false;
 
+bool changeChannelPressed = false;
+int currentVolume = 255;
 
 // int _btn_left=-1;
 // int _btn_right=-1;
@@ -61,7 +68,12 @@ void buttonInit(){
 }
 
 void buttonLoop(){
-  change_channel_pressed = (digitalRead(CHANGE_CHANNEL_PIN) == CHANGE_CHANNEL_TRIGGER_VAL);
+  #ifdef CHANGE_CHANNEL_PIN
+  changeChannelPressed = (digitalRead(CHANGE_CHANNEL_PIN) == CHANGE_CHANNEL_TRIGGER_VAL);
+  #endif
+  #ifdef VOLUME_POT_PIN
+  currentVolume = analogRead(VOLUME_POT_PIN) / (VOLUME_POT_MAX/255);
+  #endif
 
   // static uint_fast64_t buttonTimeStamp = 0;
   // if (millis() - buttonTimeStamp > 20) {
