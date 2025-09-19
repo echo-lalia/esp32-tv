@@ -17,9 +17,20 @@
   #endif
 #endif
 
+// setup soft power switch pin
+#ifdef SOFT_POWER_SWITCH_PIN
+  #ifndef SOFT_POWER_SWITCH_MODE
+  #define SOFT_POWER_SWITCH_MODE INPUT
+  #endif
+  #ifndef SOFT_POWER_SWITCH_ON_VAL
+  #define SOFT_POWER_SWITCH_ON_VAL HIGH
+  #endif
+#endif
+
 
 bool changeChannelPressed = false;
 int currentVolume = 255;
+bool softPowerEnabled = true;
 
 // int _btn_left=-1;
 // int _btn_right=-1;
@@ -59,7 +70,14 @@ void buttonInit(){
   #ifdef CHANGE_CHANNEL_PIN
   pinMode(CHANGE_CHANNEL_PIN, CHANGE_CHANNEL_PIN_MODE);
   #endif
-#ifdef BUTTON_L
+  #ifdef VOLUME_POT_PIN
+  pinMode(VOLUME_POT_PIN, INPUT);
+  #endif
+  #ifdef SOFT_POWER_SWITCH_PIN
+  pinMode(SOFT_POWER_SWITCH_PIN, SOFT_POWER_SWITCH_MODE);
+  #endif
+
+  #ifdef BUTTON_L
   #ifdef BUTTON_R
   pinMode(BUTTON_L, INPUT_PULLUP);
   pinMode(BUTTON_R, INPUT);
@@ -73,6 +91,9 @@ void buttonLoop(){
   #endif
   #ifdef VOLUME_POT_PIN
   currentVolume = analogRead(VOLUME_POT_PIN) / (VOLUME_POT_MAX/255);
+  #endif
+  #ifdef SOFT_POWER_SWITCH_PIN
+  softPowerEnabled = (digitalRead(SOFT_POWER_SWITCH_PIN) == SOFT_POWER_SWITCH_ON_VAL);
   #endif
 
   // static uint_fast64_t buttonTimeStamp = 0;

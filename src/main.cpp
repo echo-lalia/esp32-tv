@@ -36,19 +36,18 @@ int prevChannel = 99999;
 int channel = 99999;
 
 
-void setup()
+void setupTv()
 {
   Serial.begin(115200);
+
   Serial.printf("CPU freq: %dmhz\n", ESP.getCpuFreqMHz());
   Serial.printf("Total heap: %d\n", ESP.getHeapSize());
   Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
   Serial.printf("Total PSRAM: %d\n", ESP.getPsramSize());
   Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
-  buttonInit();
 
-  #ifdef VOLUME_POT_PIN
-  pinMode(VOLUME_POT_PIN, INPUT);
-  #endif
+  // initialize the TFT
+  display.init();
 
   #ifdef AUDIO_ENABLE_PIN
   // Enable audio (if required)
@@ -87,11 +86,11 @@ void setup()
   // videoSource = new SDCardVideoSource((ChannelData *) channelData);
 
 
-#ifdef USE_DAC_AUDIO
+  #ifdef USE_DAC_AUDIO
   audioOutput = new DACOutput(I2S_NUM_0);
   audioOutput->start(AUDIO_RATE);
-#endif
-#ifdef PDM_GPIO_NUM
+  #endif
+  #ifdef PDM_GPIO_NUM
   i2s speaker pins
   i2s_pin_config_t i2s_speaker_pins = {
       .bck_io_num = I2S_PIN_NO_CHANGE,
@@ -100,16 +99,16 @@ void setup()
       .data_in_num = I2S_PIN_NO_CHANGE};
   audioOutput = new PDMOutput(I2S_NUM_0, i2s_speaker_pins);
   audioOutput->start(AUDIO_RATE);
-#endif
-#ifdef PWM_GPIO_NUM
+  #endif
+  #ifdef PWM_GPIO_NUM
   audioOutput = new PWMTimerOutput(PWM_GPIO_NUM);
   audioOutput->start(AUDIO_RATE);
-#endif
-#ifdef I2S_SPEAKER_SERIAL_CLOCK
-#ifdef SPK_MODE
+  #endif
+  #ifdef I2S_SPEAKER_SERIAL_CLOCK
+  #ifdef SPK_MODE
   pinMode(SPK_MODE, OUTPUT);
   digitalWrite(SPK_MODE, HIGH);
-#endif
+  #endif
   // i2s speaker pins
   i2s_pin_config_t i2s_speaker_pins = {
       .bck_io_num = I2S_SPEAKER_SERIAL_CLOCK,
@@ -119,7 +118,7 @@ void setup()
 
   audioOutput = new I2SOutput(I2S_NUM_1, i2s_speaker_pins);
   audioOutput->start(AUDIO_RATE);
-#endif
+  #endif
   videoPlayer = new VideoPlayer(
     channelData,
     // videoSource,
@@ -140,14 +139,29 @@ void setup()
   delay(1000);
 
   randomChannel();
-
-  // // default to first channel
-  // videoPlayer->setChannel(0);
-  // delay(500);
-  // videoPlayer->play();
+}
 
 
-  // audioOutput->setVolume(4);
+void setup()
+{
+  // init buttons and check if we're turned on or off
+  buttonInit();
+  buttonLoop();
+
+  if (softPowerEnabled){
+    // run initialization for audio and video.
+    setupTv();
+  }
+  else{
+    // Powered off. Go to sleep instead.
+    Serial.begin(115200);
+    Serial.println("Power is off. Sleeping...");
+    Serial.flush();
+    #ifdef SOFT_POWER_SWITCH_PIN
+    esp_sleep_enable_ext0_wakeup(SOFT_POWER_SWITCH_PIN, SOFT_POWER_SWITCH_ON_VAL);
+    esp_deep_sleep_start();
+    #endif
+  }
 }
 
 
@@ -252,8 +266,33 @@ int moveToward(int current, int target, int step)
 }
 
 
+// Put the device into deep sleep
+void softPowerOff(){
+  videoPlayer->stop();
+  delay(10);
+  display.fillScreen(0);
+  #ifdef TFT_BL
+  digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON);
+  #endif
+  #ifdef AUDIO_ENABLE_PIN
+  digitalWrite(AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
+  #endif
+  #ifdef SOFT_POWER_SWITCH_PIN
+  esp_sleep_enable_ext0_wakeup(SOFT_POWER_SWITCH_PIN, SOFT_POWER_SWITCH_ON_VAL);
+  esp_deep_sleep_start();
+  #endif
+}
+
+
 void loop()
 {
+  #ifdef SOFT_POWER_SWITCH_PIN
+  if (!softPowerEnabled){
+    Serial.println("softPowerOff...");
+    softPowerOff();
+  }
+  #endif
+
   if (changeChannelPressed || videoPlayer->isFinished()){
     Serial.println("Setting random channel.");
     videoPlayer->stop();

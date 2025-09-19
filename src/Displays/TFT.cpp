@@ -8,7 +8,9 @@
 #endif
 
 
-TFT::TFT(): tft(new TFT_eSPI()) {
+TFT::TFT(): tft(new TFT_eSPI()) {}
+
+void TFT::init(){
   // power on the tft
   #ifdef TFT_POWER
   if (TFT_POWER != GPIO_NUM_NC) {

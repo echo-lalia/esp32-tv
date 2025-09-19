@@ -12,6 +12,7 @@ private:
   int dmaBufferIndex = 0;
 public:
   TFT();
+  void init();
   void drawPixels(int x, int y, int width, int height, uint16_t *pixels);
   void drawPixel(int x, int y, uint16_t color);
   void startWrite();
