@@ -61,6 +61,9 @@ class VideoPlayer {
     // Mutex used to lock jpeg decoding while the audio task is swapping the buffers (and setting frameReady).
     // Otherwise the audio task only writes to the "read" buffer, and the frame task only reads from the "decode" buffer.
     SemaphoreHandle_t jpegBufferMutex = xSemaphoreCreateMutex();
+  
+    // Track the number of times the frameplayertask didn't task delay
+    int framesSinceFrameDelay = 0;
 
     // used for calculating frame rate
     std::list<int> frameTimes;

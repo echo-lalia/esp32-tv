@@ -202,6 +202,18 @@ void VideoPlayer::_drawFrame()
     // Return display control.
     xSemaphoreGive(displayControlMutex);
   }
+  else {
+    // Adding a task delay is important for allowing the IDLE task to run (and feed the watchdog timer).
+    // however, it will also prevent us from reaching a high (>~15) fps.
+    // as a compromise, we can just add a task delay occasionally.
+    if (framesSinceFrameDelay > 10){
+      framesSinceFrameDelay = 0;
+      vTaskDelay(1);
+    }
+    else {
+      framesSinceFrameDelay++;
+    }
+  }
 }
 
 
