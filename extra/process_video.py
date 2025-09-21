@@ -14,6 +14,7 @@ parser.add_argument("--audio_rate", type=int, default=16000, help="The audio rat
 parser.add_argument("--quality", type=int, default=31, help="The jpeg quality to use for the video. Should be a value from 0-31, where lower numbers are higher quality, and higher numbers have a smaller file size.")
 parser.add_argument("--crt", action="store_true", help="If provided, enable the CRT filter.")
 parser.add_argument("--sharpen", action="store_true", help="If provided, adds a sharpening filter to the video, which can improve detail on the low-resolution output.")
+parser.add_argument("--relpath", action="store_true", help="Keep the relative directory structure for output files (otherwise collapse output files into one folder).")
 parser.add_argument("--dry_run", action="store_true", help="Just print the changes that would be made without actually making them.")
 parser.add_argument("--force", action="store_true", help="Force overwriting of files.")
 
@@ -28,6 +29,7 @@ audio_rate = args.audio_rate
 jpeg_quality = args.quality
 enable_crt = args.crt
 enable_sharpen = args.sharpen
+keep_relpath = args.relpath
 force_overwrite = args.force
 dry_run = args.dry_run
 
@@ -115,11 +117,13 @@ def _replace_extension(file_name: str) -> str:
 
 def _get_relative_output(input_file: str, input_path: str, output_path: str) -> str:
     """Conditionaly figure out the correct output path to use for the input file.
-    
+
     If a full file name is provided as an output_path, it will be returned.
     If a directory is provided as an output path, the result will use the input file name.
-    If a directory is provided as both the input path and output path,
-    the output path will copy the file structure of the input file relative to the input path.
+    If a directory is provided as both the input path and output path:
+        If `keep_relpath` is `True`, the output path will copy the file structure of the
+        input file relative to the input path.
+        Otherwise, the input filename will just be used in the output folder.
     """
     if os.path.isdir(output_path):
         if os.path.samefile(input_file, input_path):
@@ -129,9 +133,14 @@ def _get_relative_output(input_file: str, input_path: str, output_path: str) -> 
             # Add correct extension onto output path 
             return _replace_extension(os.path.join(output_path, name))
         # Input file is different from input path, and output is a directory.
-        # Therefore, we should find the relative path to the file, and copy that for the output.
-        relative_path = os.path.relpath(input_file, input_path)
-        return _replace_extension(os.path.join(output_path, relative_path))
+        if keep_relpath:
+            # We should find the relative path to the file, and copy that for the output.
+            relative_path = os.path.relpath(input_file, input_path)
+            return _replace_extension(os.path.join(output_path, relative_path))
+        else:
+            # Append the filename to the output directory (collapsing the file structure to one folder).
+            name = os.path.basename(input_file)
+            return _replace_extension(os.path.join(output_path, name))
     # Output path is not a directory. We must assume this is the path we should save to.
     return output_path
 
@@ -178,6 +187,36 @@ def get_file_paths(input_path: str, output_path: str) -> list[tuple[str, str]]:
     return in_out_pairs
 
 
+def _add_num_to_path(path: str, num: int) -> str:
+    """Add an integer to a file name."""
+    path, ext = os.path.splitext(path)
+    return os.extsep.join(f"{path}_{num}", OUT_EXTENSION)
+
+
+def prevent_duplicate_outpaths(in_out_filepaths: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Ensure there are no duplicate output paths by appending numbers to filenames."""
+    out_paths = []
+    replacements = {}
+    for in_path, out_path in in_out_filepaths:
+        if out_path in out_paths:
+            replacements[in_path] = _add_num_to_path(out_path, out_paths.count(out_path))
+    new_in_out_paths = []
+    for in_path, out_path in in_out_filepaths:
+        if in_path in replacements:
+            out_path = replacements[in_path]
+        new_in_out_paths.append((in_path, out_path))
+    return 
+
+
+def any_duplicate_outpaths(in_out_filepaths: list[tuple[str, str]]) -> bool:
+    """Return true if any output filepaths are duplicates."""
+    out_paths = []
+    for _, out_path in in_out_filepaths:
+        if out_path in out_paths:
+            return True
+        out_paths.append(out_path)
+    return False
+
 
 def verify_overwrite(in_out_filepaths: list[tuple[str, str]]) -> list[tuple[str, str]]:
     """If any of the given files already exist, confirm whether or not we should overwrite the files."""
@@ -215,6 +254,12 @@ if __name__ == "__main__":
     # Get a list of input/output file path pairs based on provided arguments
     in_out_filepaths = get_file_paths(input_path, output_path)
 
+    # If we are not preserving the input file structure, we must ensure there are no duplicate output paths.
+    if not keep_relpath:
+        while any_duplicate_outpaths(in_out_filepaths):
+            print("Found duplicate output paths; attempting to fix...")
+            in_out_filepaths = prevent_duplicate_outpaths(in_out_filepaths)
+
     # Confirm whether or not we should replace any extant files
     if not force_overwrite:
         in_out_filepaths = verify_overwrite(in_out_filepaths)
@@ -229,6 +274,7 @@ if __name__ == "__main__":
         print(f"jpeg_quality:    {jpeg_quality}")
         print(f"enable_crt:      {enable_crt}")
         print(f"enable_sharpen:  {enable_sharpen}")
+        print(f"keep_relpath: {keep_relpath}")
         print(f"force_overwrite: {force_overwrite}")
         print("---")
         for inpt, outpt in in_out_filepaths:
