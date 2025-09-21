@@ -19,7 +19,6 @@ void TFT::init(){
     digitalWrite(TFT_POWER, TFT_POWER_ON);
   }
   #endif
-
   tft->init();
   tft->setRotation(TFT_ROTATION);
   tft->fillScreen(TFT_BLACK);
@@ -51,6 +50,10 @@ void TFT::drawPixels(int x, int y, int width, int height, uint16_t *pixels) {
   tft->pushPixels(dmaBuffer[dmaBufferIndex], numPixels);
   #endif
   dmaBufferIndex = (dmaBufferIndex + 1) % 2;
+}
+
+void TFT::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color){
+  tft->fillRect(x, y, w, h, color);
 }
 
 void TFT::drawPixel(int x, int y, uint16_t color){

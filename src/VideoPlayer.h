@@ -13,6 +13,27 @@
 #define AUDIO_RATE 16000
 #endif
 
+#ifndef AUDIO_BUFFER_SAMPLES
+#define AUDIO_BUFFER_SAMPLES 1000
+#endif
+#define BYTES_PER_SAMPLE 8
+
+#ifndef VIDEO_WIDTH
+  #if TFT_ROTATION == 0 | TFT_ROTATION == 2
+  #define VIDEO_WIDTH TFT_WIDTH
+  #else
+  #define VIDEO_WIDTH TFT_HEIGHT
+  #endif
+#endif
+#ifndef VIDEO_HEIGHT
+  #if TFT_ROTATION == 0 | TFT_ROTATION == 2
+  #define VIDEO_HEIGHT TFT_HEIGHT
+  #else
+  #define VIDEO_HEIGHT TFT_WIDTH
+  #endif
+#endif
+
+
 class Display;
 class AudioOutput;
 

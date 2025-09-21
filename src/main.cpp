@@ -269,8 +269,25 @@ int moveToward(int current, int target, int step)
 // Put the device into deep sleep
 void softPowerOff(){
   videoPlayer->stop();
+
+  // animate crt power off
+  display.fillScreen(65535);
+  int i = 100;
+  while (i > 0){
+    int rectHeight = i * VIDEO_HEIGHT / 100;
+    int rectStart = (VIDEO_HEIGHT - rectHeight) / 2;
+    // chop off top and bottom of rect
+    display.fillRect(0, 0, VIDEO_WIDTH, rectStart, 0);
+    display.fillRect(0, rectHeight + rectStart, VIDEO_WIDTH, rectStart, 0);
+    i /= 2;
+    delay(10);
+  }
+  // chop off the left and right of the white rect
+  display.fillRect(0, 0, VIDEO_WIDTH/3, VIDEO_HEIGHT, 0);
+  display.fillRect(VIDEO_WIDTH- VIDEO_WIDTH/3, 0, VIDEO_WIDTH/3, VIDEO_HEIGHT, 0);
   delay(10);
   display.fillScreen(0);
+
   #ifdef TFT_BL
   digitalWrite(TFT_BL, !TFT_BACKLIGHT_ON);
   #endif

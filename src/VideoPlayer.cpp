@@ -9,15 +9,6 @@
 
 
 
-#ifndef AUDIO_BUFFER_SAMPLES
-#define AUDIO_BUFFER_SAMPLES 1000
-#endif
-#define BYTES_PER_SAMPLE 8
-
-#ifndef VIDEO_WIDTH
-#define VIDEO_WIDTH TFT_WIDTH
-#endif
-
 
 void VideoPlayer::_framePlayerTask(void *param)
 {
