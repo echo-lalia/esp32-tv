@@ -12,15 +12,21 @@ protected:
   int mChannelNumber = 0;
 private:
   const char *mChannelInfoURL = NULL;
+
   std::vector<std::string> mAviFiles;
+  // Hold a shuffled list of channel indices and the current index in that list.
+  std::vector<int> mShuffledChannels;
+  uint32_t mShuffledChannelIndex = 0;
+
   AVIParser *mCurrentChannelAudioParser = NULL;
   AVIParser *mCurrentChannelVideoParser = NULL;
 
-  // Mutex lock to protect control of current channel and parser.
-  // SemaphoreHandle_t controlMutex = xSemaphoreCreateMutex();
-
   SDCard *mSDCard;
   const char *mAviPath;
+
+  // initialize the shuffled channel list to an ordered list of channel indices
+  void _initShuffledChannels();
+
 public:
   ChannelData(SDCard *sdCard, const char *aviPath);
   bool fetchChannelData();
@@ -31,14 +37,12 @@ public:
     // we don't know the length of the AVI file
     return -1;
   };
-  // bool takeControl() {
-  //   Serial.println("Someone took control of ChannelData.");
-  //   return xSemaphoreTake(controlMutex, portMAX_DELAY);
-  // }
-  // bool giveControl() {
-  //   Serial.println("Released control of ChannelData.");
-  //   return xSemaphoreGive(controlMutex);
-  // }
+
+  // Reshuffle the channel list.
+  void reshuffleChannels();
+  // Get the next channel index from the shuffle.
+  int getNextChannel();
+
   AVIParser *getAudioParser() {
     return mCurrentChannelAudioParser;
   };

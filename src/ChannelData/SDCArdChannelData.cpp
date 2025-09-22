@@ -13,17 +13,16 @@ bool ChannelData::fetchChannelData() {
     Serial.println("SD card is not mounted");
     return false;
   }
+
   // get the list of AVI files
-  // if (takeControl()) {
   mAviFiles = mSDCard->listFiles(mAviPath, ".avi");
-  // giveControl();
+  reshuffleChannels();
+  
   if (mAviFiles.size() == 0) {
     Serial.println("No AVI files found");
     return false;
   }
   return true;
-  // }
-  return false;
 }
 
 
@@ -34,13 +33,11 @@ void ChannelData::setChannel(int channel) {
   // }
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
-    // giveControl();
     return;
   }
   // check that the channel is valid
   if (channel < 0 || channel >= mAviFiles.size()) {
     Serial.printf("Invalid channel %d\n", channel);
-    // giveControl();
     return;
   }
   // close any open AVI files
@@ -70,5 +67,49 @@ void ChannelData::setChannel(int channel) {
     mCurrentChannelAudioParser = NULL;
   }
   mChannelNumber = channel;
-  // giveControl();
 }
+
+
+void ChannelData::_initShuffledChannels(){
+  if (mShuffledChannels.size() != mAviFiles.size()){
+    mShuffledChannels.resize(mAviFiles.size());
+  }
+  for (int i = 0; i < mAviFiles.size(); i++){
+    mShuffledChannels[i] = i;
+  }
+}
+
+
+void ChannelData::reshuffleChannels(){
+  Serial.println("Reshuffling channels...");
+  _initShuffledChannels();
+
+  for (int idx = 0; idx < mShuffledChannels.size() - 2; idx++){
+    int idx2 = random(idx, mShuffledChannels.size() - 1);
+    int tmp = mShuffledChannels[idx];
+    mShuffledChannels[idx] = mShuffledChannels[idx2];
+    mShuffledChannels[idx2] = tmp;
+  }
+  mShuffledChannelIndex = 0;
+
+  #if CORE_DEBUG_LEVEL > 2
+  Serial.println("Shuffled order:");
+  for (int i = 0; i < mShuffledChannels.size(); i++){
+    Serial.printf("%d ", mShuffledChannels[i]);
+  }
+  Serial.print("\n");
+  #endif
+}
+
+
+int ChannelData::getNextChannel(){
+  mShuffledChannelIndex++;
+  if (mShuffledChannelIndex >= mShuffledChannels.size()){
+    mShuffledChannelIndex = 0;
+    reshuffleChannels();
+  }
+  return mShuffledChannels[mShuffledChannelIndex];
+}
+
+
+
