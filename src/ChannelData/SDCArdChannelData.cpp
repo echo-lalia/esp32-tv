@@ -85,7 +85,7 @@ void ChannelData::reshuffleChannels(){
   _initShuffledChannels();
 
   for (int idx = 0; idx < mShuffledChannels.size() - 2; idx++){
-    int idx2 = random(idx, mShuffledChannels.size() - 1);
+    int idx2 = random(idx, mShuffledChannels.size());
     int tmp = mShuffledChannels[idx];
     mShuffledChannels[idx] = mShuffledChannels[idx2];
     mShuffledChannels[idx2] = tmp;

@@ -41,17 +41,6 @@ void setupTv()
   // initialize the TFT
   display.init();
 
-  #ifdef AUDIO_ENABLE_PIN
-  // Enable audio (if required)
-  #ifndef AUDIO_ENABLE_VAL
-  #define AUDIO_ENABLE_VAL LOW
-  #endif
-  pinMode(AUDIO_ENABLE_PIN, OUTPUT);
-  Serial.printf("Enabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
-  digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
-  #endif
-
-
   Serial.println("Using SD Card");
   // power on the SD card
   #ifdef SD_CARD_PWR
@@ -120,7 +109,7 @@ void setupTv()
   );
   videoPlayer->start();
 
-  display.drawTuningText();
+  // display.drawTuningText();
   // get the channel info
   while(!channelData->fetchChannelData()) {
     Serial.println("Failed to fetch channel data");
@@ -131,6 +120,18 @@ void setupTv()
   delay(1000);
 
   randomChannel();
+
+  #ifdef AUDIO_ENABLE_PIN
+  // Enable audio (if required)
+  // Enabling audio after playback starts prevents a click on start.
+  #ifndef AUDIO_ENABLE_VAL
+  #define AUDIO_ENABLE_VAL LOW
+  #endif
+  delay(10);
+  pinMode(AUDIO_ENABLE_PIN, OUTPUT);
+  Serial.printf("Enabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  #endif
 }
 
 
