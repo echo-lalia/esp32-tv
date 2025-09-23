@@ -51,10 +51,6 @@ class VideoPlayer {
     SemaphoreHandle_t displayControlMutex = xSemaphoreCreateMutex();
     JPEGDEC mJpeg = JPEGDEC();
 
-    // video source
-    // VideoSource *mVideoSource = NULL;
-    // audio source
-    // AudioSource *mAudioSource = NULL;
     // channel information
     ChannelData *mChannelData = NULL;
 
@@ -83,8 +79,9 @@ class VideoPlayer {
     // Otherwise the audio task only writes to the "read" buffer, and the frame task only reads from the "decode" buffer.
     SemaphoreHandle_t jpegBufferMutex = xSemaphoreCreateMutex();
   
-    // Track the number of times the frameplayertask didn't task delay
-    int framesSinceFrameDelay = 0;
+    // Track whether or not the previous _drawFrame loop drew a frame
+    // (used for limiting the amount of vTaskDelay calls we make)
+    bool drewFrameLastLoop = false;
 
     // used for calculating frame rate
     std::list<int> frameTimes;

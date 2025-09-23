@@ -192,17 +192,15 @@ void VideoPlayer::_drawFrame()
     mDisplay.endWrite();
     // Return display control.
     xSemaphoreGive(displayControlMutex);
+    drewFrameLastLoop = true;
   }
   else {
     // Adding a task delay is important for allowing the IDLE task to run (and feed the watchdog timer).
-    // however, it will also prevent us from reaching a high (>~15) fps.
-    // as a compromise, we can just add a task delay occasionally.
-    if (framesSinceFrameDelay > 10){
-      framesSinceFrameDelay = 0;
+    // however, it can also prevent us from reaching a high (>~15) fps.
+    // as a compromise, we can just add a task delay a max of once per frame.
+    if (drewFrameLastLoop){
+      drewFrameLastLoop = false;
       vTaskDelay(1);
-    }
-    else {
-      framesSinceFrameDelay++;
     }
   }
 }
