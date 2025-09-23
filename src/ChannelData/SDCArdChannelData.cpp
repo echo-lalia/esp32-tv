@@ -3,6 +3,14 @@
 #include "SDCardChannelData.h"
 #include "../AVIParser/AVIParser.h"
 
+
+// Store some channel information in RTC ram so it persists through deep sleep.
+// The seed previously used to shuffle the channel list.
+RTC_DATA_ATTR uint32_t shuffleSeed = 0;
+// The index of the current channel in the shuffle
+RTC_DATA_ATTR uint32_t shuffledChannelIndex = 0;
+
+
 ChannelData::ChannelData(SDCard *sdCard, const char *aviPath): mSDCard(sdCard), mAviPath(aviPath) {
 
 }
@@ -16,8 +24,21 @@ bool ChannelData::fetchChannelData() {
 
   // get the list of AVI files
   mAviFiles = mSDCard->listFiles(mAviPath, ".avi");
-  reshuffleChannels();
+
   
+  if (shuffleSeed == 0){
+    _resetShuffleSeed();
+  }
+  else {
+    Serial.printf("Stored shuffle seed: %u\n", shuffleSeed);
+  }
+  if (shuffledChannelIndex != 0){
+    Serial.printf("Stored shuffled channel index: %u\n", shuffledChannelIndex);
+    // The channel index is incremented each time it's accessed, so moving back one starts us where we were pre-deepsleep
+    shuffledChannelIndex--;
+  }
+  reshuffleChannels();
+
   if (mAviFiles.size() == 0) {
     Serial.println("No AVI files found");
     return false;
@@ -79,10 +100,17 @@ void ChannelData::_initShuffledChannels(){
   }
 }
 
+void ChannelData::_resetShuffleSeed(){
+  shuffleSeed = esp_random();
+  Serial.printf("New shuffle seed: %u\n", shuffleSeed);
+}
+
 
 void ChannelData::reshuffleChannels(){
   Serial.println("Reshuffling channels...");
   _initShuffledChannels();
+  // Seed the pseudo rng with the stored value
+  randomSeed(shuffleSeed);
 
   for (int idx = 0; idx < mShuffledChannels.size() - 2; idx++){
     int idx2 = random(idx, mShuffledChannels.size());
@@ -90,7 +118,6 @@ void ChannelData::reshuffleChannels(){
     mShuffledChannels[idx] = mShuffledChannels[idx2];
     mShuffledChannels[idx2] = tmp;
   }
-  mShuffledChannelIndex = 0;
 
   #if CORE_DEBUG_LEVEL > 2
   Serial.println("Shuffled order:");
@@ -103,13 +130,12 @@ void ChannelData::reshuffleChannels(){
 
 
 int ChannelData::getNextChannel(){
-  mShuffledChannelIndex++;
-  if (mShuffledChannelIndex >= mShuffledChannels.size()){
-    mShuffledChannelIndex = 0;
+  shuffledChannelIndex++;
+  if (shuffledChannelIndex >= mShuffledChannels.size()){
+    shuffledChannelIndex = 0;
+    _resetShuffleSeed();
     reshuffleChannels();
   }
-  return mShuffledChannels[mShuffledChannelIndex];
+  return mShuffledChannels[shuffledChannelIndex];
 }
-
-
 

@@ -16,7 +16,6 @@ private:
   std::vector<std::string> mAviFiles;
   // Hold a shuffled list of channel indices and the current index in that list.
   std::vector<int> mShuffledChannels;
-  uint32_t mShuffledChannelIndex = 0;
 
   AVIParser *mCurrentChannelAudioParser = NULL;
   AVIParser *mCurrentChannelVideoParser = NULL;
@@ -26,7 +25,8 @@ private:
 
   // initialize the shuffled channel list to an ordered list of channel indices
   void _initShuffledChannels();
-
+  // create and store a new shuffle seed
+  void _resetShuffleSeed();
 public:
   ChannelData(SDCard *sdCard, const char *aviPath);
   bool fetchChannelData();
