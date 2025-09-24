@@ -14,6 +14,7 @@ private:
   const char *mChannelInfoURL = NULL;
 
   std::vector<std::string> mAviFiles;
+  std::vector<std::string> mBumperFiles;
   // Hold a shuffled list of channel indices and the current index in that list.
   std::vector<int> mShuffledChannels;
 
@@ -21,13 +22,14 @@ private:
 
   SDCard *mSDCard;
   const char *mAviPath;
+  const char *mBumperPath;
 
   // initialize the shuffled channel list to an ordered list of channel indices
   void _initShuffledChannels();
   // create and store a new shuffle seed
   void _resetShuffleSeed();
 public:
-  ChannelData(SDCard *sdCard, const char *aviPath);
+  ChannelData(SDCard *sdCard, const char *aviPath, const char *bumperPath);
   bool fetchChannelData();
   int getChannelCount() {
     return mAviFiles.size();

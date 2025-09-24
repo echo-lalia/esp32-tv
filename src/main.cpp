@@ -62,7 +62,7 @@ void setupTv()
       delay(1000);
     }
   }
-  channelData = new ChannelData(card, "/");
+  channelData = new ChannelData(card, "/", "/bumpers");
   // audioSource = new SDCardAudioSource((ChannelData *) channelData);
   // videoSource = new SDCardVideoSource((ChannelData *) channelData);
 

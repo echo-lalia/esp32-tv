@@ -11,7 +11,7 @@ RTC_DATA_ATTR uint32_t shuffleSeed = 0;
 RTC_DATA_ATTR uint32_t shuffledChannelIndex = 0;
 
 
-ChannelData::ChannelData(SDCard *sdCard, const char *aviPath): mSDCard(sdCard), mAviPath(aviPath) {
+ChannelData::ChannelData(SDCard *sdCard, const char *aviPath, const char *bumperPath): mSDCard(sdCard), mAviPath(aviPath), mBumperPath(bumperPath) {
 
 }
 
@@ -24,6 +24,9 @@ bool ChannelData::fetchChannelData() {
 
   // get the list of AVI files
   mAviFiles = mSDCard->listFiles(mAviPath, ".avi");
+  mBumperFiles = mSDCard->listFiles(mBumperPath, ".avi");
+
+  
 
   
   if (shuffleSeed == 0){
@@ -53,7 +56,7 @@ void ChannelData::setChannel(int channel) {
     return;
   }
   // check that the channel is valid
-  if (channel < 0 || channel >= mAviFiles.size()) {
+  if ((channel < 0 && abs(channel) > mBumperFiles.size()) || channel >= mAviFiles.size()) {
     Serial.printf("Invalid channel %d\n", channel);
     return;
   }
@@ -63,7 +66,15 @@ void ChannelData::setChannel(int channel) {
     mCurrentChannelVideoParser = NULL;
   }
   // open the AVI file
-  std::string aviFilename = mAviFiles[channel];
+  std::string aviFilename;
+  // Channels from -1 and below are bumpers
+  if (channel < 0 && mBumperFiles.size() > 0){
+    aviFilename = mBumperFiles[abs(channel) - 1];
+  }
+  // Otherwise, it's a normal channel
+  else {
+    aviFilename = mAviFiles[channel];
+  }
   Serial.printf("Opening AVI file %s\n", aviFilename.c_str());
   mCurrentChannelVideoParser = new AVIParser(aviFilename, AVIChunkType::VIDEO);
   if (!mCurrentChannelVideoParser->open()) {
@@ -114,6 +125,12 @@ void ChannelData::reshuffleChannels(){
 
 
 int ChannelData::getNextChannel(){
+  // If it's currently a normal channel, return a random bumper next (if we have any)
+  if (mChannelNumber >= 0 && mBumperFiles.size() > 0){
+    int bumperIndex = random(0, mBumperFiles.size());
+    return -1 * (bumperIndex + 1);
+  }
+  // If we previously played a bumper, or we have no bumpers, return the next normal channel
   shuffledChannelIndex++;
   if (shuffledChannelIndex >= mShuffledChannels.size()){
     shuffledChannelIndex = 0;
