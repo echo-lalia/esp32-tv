@@ -48,10 +48,6 @@ bool ChannelData::fetchChannelData() {
 
 
 void ChannelData::setChannel(int channel) {
-  // if (!takeControl()) {
-  //   Serial.println("Failed to take control of channel data.");
-  //   return;
-  // }
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
     return;
@@ -62,10 +58,6 @@ void ChannelData::setChannel(int channel) {
     return;
   }
   // close any open AVI files
-  if (mCurrentChannelAudioParser) {
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
-  }
   if (mCurrentChannelVideoParser) {
     delete mCurrentChannelVideoParser;
     mCurrentChannelVideoParser = NULL;
@@ -73,19 +65,11 @@ void ChannelData::setChannel(int channel) {
   // open the AVI file
   std::string aviFilename = mAviFiles[channel];
   Serial.printf("Opening AVI file %s\n", aviFilename.c_str());
-  mCurrentChannelAudioParser = new AVIParser(aviFilename, AVIChunkType::AUDIO);
-  if (!mCurrentChannelAudioParser->open()) {
-    Serial.printf("Failed to open AVI file %s\n", aviFilename.c_str());
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
-  }
   mCurrentChannelVideoParser = new AVIParser(aviFilename, AVIChunkType::VIDEO);
   if (!mCurrentChannelVideoParser->open()) {
     Serial.printf("Failed to open AVI file %s\n", aviFilename.c_str());
     delete mCurrentChannelVideoParser;
     mCurrentChannelVideoParser = NULL;
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
   }
   mChannelNumber = channel;
 }

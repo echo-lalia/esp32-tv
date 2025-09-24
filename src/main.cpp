@@ -120,6 +120,7 @@ void setupTv()
   delay(1000);
 
   randomChannel();
+  audioOutput->setVolume(currentVolume);
 
   #ifdef AUDIO_ENABLE_PIN
   // Enable audio (if required)
@@ -220,6 +221,7 @@ int moveToward(int current, int target, int step)
 // Put the device into deep sleep
 void softPowerOff(){
   videoPlayer->stop();
+  channelData->getVideoParser()->storePosition();
 
   // animate crt power off
   display.fillScreen(65535);

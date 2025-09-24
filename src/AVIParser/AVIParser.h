@@ -32,6 +32,8 @@ public:
   AVIParser(std::string fname, AVIChunkType requiredChunkType);
   ~AVIParser();
   bool open();
+  // Store attributes needed to resume playback from current position.
+  void storePosition();
   ChunkHeader getNextHeader();
   size_t getNextChunk(ChunkHeader header, uint8_t **buffer, size_t &bufferLength, bool skipChunk=false);
 };

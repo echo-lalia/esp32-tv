@@ -278,7 +278,7 @@ void VideoPlayer::audioPlayerTask()
 int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int currentAudioSample)
 {
   // read the audio data into the buffer
-  AVIParser *parser = mChannelData->getAudioParser();
+  AVIParser *parser = mChannelData->getVideoParser();
   if (parser) {
     ChunkHeader header = {OTHER_CHUNK, 0};
     

@@ -5,13 +5,33 @@
 #include "AVIParser.h"
 
 
-// #define PROFILE_START int start_time = millis(); int new_time = start_time;
-// #define PROFILE_CHECKPOINT(text) new_time = millis(); Serial.printf(text ": %dms\n", new_time - start_time); start_time = new_time;
+// Store some channel information in RTC ram so it persists through deep sleep.
+// Whether or not a file is currently playing
+RTC_DATA_ATTR bool isFilePlaying = false;
+// The hash of the current file name
+RTC_DATA_ATTR uint32_t currentFileNameHash = 0;
+// The current file position
+RTC_DATA_ATTR long currentFilePosition = 0;
+// The current remaining movi list length
+RTC_DATA_ATTR long currentMoviListLength = 0;
 
 
-// enum chunk_type {AUDIO_CHUNK, VIDEO_CHUNK, RIFF_CHUNK, LIST_CHUNK, OTHER_CHUNK};
 
+// 32-bit FNV-1 hash function (http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-1)
+#define FNV_OFFSET_BASIS 2166136261u
+#define FNV_PRIME        16777619u
+uint32_t fnvHash(const char *str)
+{
+    uint32_t hash = FNV_OFFSET_BASIS;
+    unsigned char c;
 
+    while ((c = (unsigned char)*str++)) {
+        hash *= FNV_PRIME;   // multiply by FNV prime
+        hash ^= c;           // XOR with the next byte
+    }
+
+    return hash;
+}
 
 
 void readChunk(FILE *file, ChunkHeader *header)
@@ -37,10 +57,6 @@ void readChunk(FILE *file, ChunkHeader *header)
     header->chunkType = OTHER_CHUNK;
   }
   
-  // Serial.printf("ChunkId %c%c%c%c, size %u\n",
-  //        header->chunkId[0], header->chunkId[1],
-  //        header->chunkId[2], header->chunkId[3],
-  //        header->chunkSize);
 }
 
 AVIParser::AVIParser(std::string fname, AVIChunkType requiredChunkType): mFileName(fname), mRequiredChunkType(requiredChunkType)
@@ -82,6 +98,7 @@ bool AVIParser::isMoviListChunk(unsigned int chunkSize)
 
 bool AVIParser::open()
 {
+  
   mFile = fopen(mFileName.c_str(), "rb");
   if (!mFile)
   {
@@ -155,8 +172,37 @@ bool AVIParser::open()
     mFile = NULL;
     return false;
   }
+
+  // attempt to resume playback if we have reopened the previous file
+  if (isFilePlaying && currentFileNameHash && currentFilePosition && fnvHash(mFileName.c_str()) == currentFileNameHash){
+    long previousPosition = ftell(mFile);
+    Serial.printf("Resuming playback from position %ld\n", currentFilePosition);
+    fseek(mFile, currentFilePosition, SEEK_SET);
+    if (ftell(mFile) != currentFilePosition){
+      Serial.println("Failed to seek to previous position.");
+      fseek(mFile, previousPosition, SEEK_SET);
+    }
+  }
+  isFilePlaying = true;
+  currentFileNameHash = 0;
+  currentFilePosition = 0;
+
   // keep the file open for reading the frames
   return true;
+}
+
+
+void AVIParser::storePosition(){
+  if (mMoviListLength && mFile)
+  {
+    currentFileNameHash = fnvHash(mFileName.c_str());
+    currentFilePosition = ftell(mFile);
+    currentMoviListLength = mMoviListLength;
+    Serial.printf("Storing file position %ld for file hash %u\n", currentFilePosition, currentFileNameHash);
+  }
+  else {
+    isFilePlaying = false;
+  }
 }
 
 
@@ -178,11 +224,13 @@ ChunkHeader AVIParser::getNextHeader(){
     ChunkHeader header;
     readChunk(mFile, &header);
     mMoviListLength -= 8;
+    currentFilePosition = ftell(mFile);
     return header;
   }
   else {
     // no more chunks
     Serial.println("No more data");
+    isFilePlaying = false;
     return EMPTY_HEADER;
   }
 

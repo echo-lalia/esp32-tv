@@ -17,7 +17,6 @@ private:
   // Hold a shuffled list of channel indices and the current index in that list.
   std::vector<int> mShuffledChannels;
 
-  AVIParser *mCurrentChannelAudioParser = NULL;
   AVIParser *mCurrentChannelVideoParser = NULL;
 
   SDCard *mSDCard;
@@ -43,9 +42,6 @@ public:
   // Get the next channel index from the shuffle.
   int getNextChannel();
 
-  AVIParser *getAudioParser() {
-    return mCurrentChannelAudioParser;
-  };
   AVIParser *getVideoParser() {
     return mCurrentChannelVideoParser;
   };
