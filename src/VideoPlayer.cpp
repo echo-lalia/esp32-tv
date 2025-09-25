@@ -62,6 +62,7 @@ void VideoPlayer::setChannel(int channel)
 
 void VideoPlayer::play()
 {
+  Serial.println("VideoPlayer::play()");
   if (mState == VideoPlayerState::PLAYING)
   {
     return;
@@ -73,6 +74,7 @@ void VideoPlayer::play()
 
 void VideoPlayer::stop()
 {
+  Serial.println("VideoPlayer::stop()");
   if (mState == VideoPlayerState::STOPPED)
   {
     return;
@@ -88,9 +90,21 @@ void VideoPlayer::stop()
 
 void VideoPlayer::_setPlayingFinished()
 {
-  if (mState == VideoPlayerState::PLAYING_FINISHED)
-  {
+  Serial.println("VideoPlayer::_setPlayingFinished()");
+  if (mState == VideoPlayerState::PLAYING_FINISHED){
     return;
+  }
+  // wait for any current frame to finish drawing
+  bool stillDrawing = true;
+  while (stillDrawing){
+    if (xSemaphoreTake(jpegBufferMutex, 1000)){
+      stillDrawing = frameReady;
+      xSemaphoreGive(jpegBufferMutex);
+    }
+    else {
+      Serial.println("Timeout waiting for jpegBufferMutex in _setPlayingFinished");
+      stillDrawing = false;
+    }
   }
   Serial.println("Playing finished.");
   mState = VideoPlayerState::PLAYING_FINISHED;
@@ -104,6 +118,7 @@ void VideoPlayer::_setPlayingFinished()
 
 void VideoPlayer::pause()
 {
+  Serial.println("VideoPlayer::pause()");
   if (mState == VideoPlayerState::PAUSED)
   {
     return;
@@ -114,6 +129,7 @@ void VideoPlayer::pause()
 
 void VideoPlayer::playStatic()
 {
+  Serial.println("VideoPlayer::playstatic()");
   if (mState == VideoPlayerState::STATIC)
   {
     return;
@@ -162,7 +178,7 @@ void VideoPlayer::_drawFrame()
   // Take the jpeg mutex lock to check if a frame is ready, and draw if it is.
   if (xSemaphoreTake(jpegBufferMutex, 100)){
     // If the frame is ready, also take the display control mutex.
-    if (frameReady && xSemaphoreTake(displayControlMutex, 10)){
+    if (frameReady && xSemaphoreTake(displayControlMutex, 1000)){
       // Draw the frame!
       if (mJpeg.openRAM(jpegDecodeBuffer, jpegDecodeLength, _doDraw))
       {
@@ -303,7 +319,7 @@ int VideoPlayer::_getAudioSamples(uint8_t **buffer, size_t &bufferSize, int curr
         jpegReadLength = parser->getNextChunk(header, (uint8_t **) &jpegReadBuffer, jpegReadBufferLength);
 
         // Take the mutex lock and swap the read/decode buffers
-        if (xSemaphoreTake(jpegBufferMutex, portMAX_DELAY)){
+        if (xSemaphoreTake(jpegBufferMutex, 1000)){
           if (frameReady) {Serial.println("Overwriting video chunk!");}
 
           uint8_t *tempBuffer = jpegDecodeBuffer;

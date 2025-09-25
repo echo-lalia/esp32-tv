@@ -56,7 +56,11 @@ void ChannelData::setChannel(int channel) {
     return;
   }
   // check that the channel is valid
-  if ((channel < 0 && abs(channel) > mBumperFiles.size()) || channel >= mAviFiles.size()) {
+  if (channel < 0 && abs(channel) > mBumperFiles.size()){
+    Serial.printf("Invalid bumper channel %d (%d)\n", channel, abs(channel) - 1);
+    return;
+  }
+  if (channel >= 0 && channel >= mAviFiles.size()) {
     Serial.printf("Invalid channel %d\n", channel);
     return;
   }

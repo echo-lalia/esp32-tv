@@ -157,6 +157,11 @@ std::vector<std::string> SDCard::listFiles(const char *folder, const char *exten
     Serial.println("Failed to open directory");
     return files;
   }
+  // add a trailing slash if there isn't one (for joining to filename)
+  if (folder[strlen(folder) - 1] != '/')
+  {
+    strcat(full_path, "/");
+  }
   // list all the files in the directory that end with the extension
   struct dirent *ent;
   while ((ent = readdir(dir)) != NULL)
@@ -166,7 +171,7 @@ std::vector<std::string> SDCard::listFiles(const char *folder, const char *exten
     bool isVisible = filename[0] != '.';
     bool isMatchingExtension = extension == NULL || filename.find(extension) == filename.length() - strlen(extension);
     if (isFile && isVisible && isMatchingExtension) {
-            files.push_back("/sdcard/" + filename);
+      files.push_back(full_path + filename);
     }
   }
   // sort the files alphabetically
