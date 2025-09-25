@@ -6,12 +6,11 @@ import subprocess
 import argparse
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("input_path")
+parser = argparse.ArgumentParser()
+parser.add_argument("input_path")
 
-# args = parser.parse_args()
-# input_path = args.input_path
-input_path = r"f:\Ethan\Videos\CYDtvvideo\bumpers"
+args = parser.parse_args()
+input_path = args.input_path
 
 
 
