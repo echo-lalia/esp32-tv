@@ -9,7 +9,7 @@ class AVIParser;
 class ChannelData
 {
 protected:
-  int mChannelNumber = 0;
+  int mChannelNumber = -1;
 private:
   const char *mChannelInfoURL = NULL;
 

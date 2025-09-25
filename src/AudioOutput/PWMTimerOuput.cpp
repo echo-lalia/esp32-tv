@@ -19,7 +19,7 @@ void PWMTimerOutput::start(uint32_t sample_rate)
 {
   mSampleRate = sample_rate;
 
-  ledcSetup(2, 32000, 8);
+  ledcSetup(2, 32000, 11);
   ledcAttachPin(mPDMPin, 2);
 
   // create a timer that will fire at the sample rate
@@ -103,7 +103,7 @@ void PWMTimerOutput::onTimer()
   {
     mCount++;
     // get the first sample from the buffer
-    uint8_t sample = mBuffer[mCurrentIndex];
+    uint32_t sample = mBuffer[mCurrentIndex] << 3;
     mCurrentIndex++;
     ledcWrite(2, sample * mVolume / 255);
   }
