@@ -43,6 +43,8 @@ public:
   void reshuffleChannels();
   // Get the next channel index from the shuffle.
   int getNextChannel();
+  // Try to peek at the next (normal) channel, without iterating.
+  int peekNextChannelNum();
 
   AVIParser *getVideoParser() {
     return mCurrentChannelVideoParser;

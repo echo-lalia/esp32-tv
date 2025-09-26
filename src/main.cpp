@@ -24,7 +24,7 @@ ChannelData *channelData = NULL;
 
 TFT display;
 
-void randomChannel();
+void randomChannel(bool drawChannel);
 int channel = 99999;
 
 
@@ -119,7 +119,7 @@ void setupTv()
   videoPlayer->playStatic();
   delay(1000);
 
-  randomChannel();
+  randomChannel(true);
   audioOutput->setVolume(currentVolume);
 
   #ifdef AUDIO_ENABLE_PIN
@@ -194,8 +194,18 @@ void channelUp() {
 }
 
 
-void randomChannel() {
+void randomChannel(bool drawChannel) {
   channel = channelData->getNextChannel();
+
+  if (drawChannel){
+    // Dont draw the negative bumper channel indexes; instead draw the next channel.
+    if (channel < 0){
+      videoPlayer->drawChannel(channelData->peekNextChannelNum());
+    }
+    else {
+      videoPlayer->drawChannel(channel);
+    }
+  }
 
   videoPlayer->setChannel(channel);
   videoPlayer->play();
@@ -267,7 +277,7 @@ void loop()
     Serial.println("Setting random channel.");
     videoPlayer->stop();
     delay(100);
-    randomChannel();
+    randomChannel(changeChannelPressed);
     videoPlayer->play();
   }
 

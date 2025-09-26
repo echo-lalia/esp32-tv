@@ -144,3 +144,14 @@ int ChannelData::getNextChannel(){
   return mShuffledChannels[shuffledChannelIndex];
 }
 
+
+int ChannelData::peekNextChannelNum(){
+  // Attempt to peek at the next channel, without iterating.
+  // This won't work correctly if the channels would need to be reshuffled,
+  // but that doesn't matter much, since this is only for displaying the next channel number.
+  if (mShuffledChannels.size() == 0){
+    return 0;
+  }
+  uint32_t wrappedIndex = (shuffledChannelIndex + 1) % mShuffledChannels.size();
+  return mShuffledChannels[wrappedIndex];
+}

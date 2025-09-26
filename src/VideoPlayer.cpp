@@ -47,17 +47,23 @@ void VideoPlayer::start()
   xTaskCreatePinnedToCore(_audioPlayerTask, "audio_loop", 1024 * 16, this, 1, NULL, 1);
 }
 
-void VideoPlayer::setChannel(int channel)
+void VideoPlayer::drawChannel(int channel)
 {
+  channelToDraw = channel;
   if (xSemaphoreTake(displayControlMutex, 100)){
     mDisplay.drawChannel(channel);
     xSemaphoreGive(displayControlMutex);
   }
+  mChannelVisible = millis();
+}
+
+void VideoPlayer::setChannel(int channel)
+{
+  
   Serial.println("Setting channel in VideoPlayer::setChannel");
   mChannelData->setChannel(channel);
   // set the audio sample to 0 - TODO - move this somewhere else?
   mCurrentAudioSample = 0;
-  mChannelVisible = millis();
 }
 
 void VideoPlayer::play()
@@ -202,7 +208,7 @@ void VideoPlayer::_drawFrame()
     }
     // show channel indicator
     if (millis() - mChannelVisible < 2000) {
-      mDisplay.drawChannel(mChannelData->getChannelNumber());
+      mDisplay.drawChannel(channelToDraw);
     }
     #if CORE_DEBUG_LEVEL > 0
     mDisplay.drawFPS(frameTimes.size());

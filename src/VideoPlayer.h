@@ -53,6 +53,8 @@ class VideoPlayer {
 
     // channel information
     ChannelData *mChannelData = NULL;
+    // The channel we should be drawing (if any) (might differ from played channel for bumpers)
+    int channelToDraw = 0;
 
     // audio playing
     int mCurrentAudioSample = 0;
@@ -99,6 +101,7 @@ class VideoPlayer {
 
   public:
     VideoPlayer(ChannelData *channelData, Display &display, AudioOutput *audioOutput);
+    void drawChannel(int channelIndex);
     void setChannel(int channelIndex);
     void start();
     void play();
