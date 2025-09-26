@@ -11,10 +11,20 @@ parser.add_argument("input_path")
 parser.add_argument("output_path")
 parser.add_argument("--force", action="store_true", help="Force overwriting of files.")
 parser.add_argument("--dry_run", action="store_true", help="Just print the changes that would be made without actually making them.")
-parser.add_argument("--remove_junk", type=bool, default=True, help="Remove JUNK chunks from the AVI file. (This is usually safe)")
-parser.add_argument("--remove_unused", type=bool, default=True, help="Remove chunks types that are not used by the ESP32-TV player. (This will remove optional index chunks, which will cause issues with some players)")
-parser.add_argument("--remove_empty_frames", type=bool, default=False, help="Remove any empty video frames from the AVI file. (This may cause audio/video sync issues with some players)")
-parser.add_argument("--fix_big_audio_chunk", type=bool, default=True, help="Find and split up a final big (and out of order) audio chunk. (this can break any present index chunks, and therefore cause glitches in some players)")
+parser.add_argument("--remove_junk", type=str, default="True", help="Remove JUNK chunks from the AVI file. (This is usually safe)")
+parser.add_argument("--remove_unused", type=str, default="True", help="Remove chunks types that are not used by the ESP32-TV player. (This will remove optional index chunks, which will cause issues with some players)")
+parser.add_argument("--remove_empty_frames", type=str, default="False", help="Remove any empty video frames from the AVI file. (This may cause audio/video sync issues with some players)")
+parser.add_argument("--fix_big_audio_chunk", type=str, default="True", help="Find and split up a final big (and out of order) audio chunk. (this can break any present index chunks, and therefore cause glitches in some players)")
+
+
+def smart_str_bool(val: str) -> bool:
+    """Convert a string to a boolean value."""
+    if val.strip().casefold() in {"true", "t", "1", "yes", "y", "on"}:
+        return True
+    if val.strip().casefold() in {"false", "f", "0", "no", "n", "off"}:
+        return False
+    raise ValueError(f"Cannot convert '{val}' to a boolean value.")
+
 
 args = parser.parse_args()
 input_path = args.input_path
@@ -22,10 +32,10 @@ output_path = args.output_path
 force_overwrite = args.force
 dry_run = args.dry_run
 
-remove_junk = args.remove_junk
-remove_unused_chunk_types = args.remove_unused
-remove_empty_frames = args.remove_empty_frames
-fix_big_audio_chunk = args.fix_big_audio_chunk
+remove_junk = smart_str_bool(args.remove_junk)
+remove_unused_chunk_types = smart_str_bool(args.remove_unused)
+remove_empty_frames = smart_str_bool(args.remove_empty_frames)
+fix_big_audio_chunk = smart_str_bool(args.fix_big_audio_chunk)
 
 
 
@@ -52,6 +62,15 @@ class RIFFChunk:
     
     def __repr__(self):
         return f"{self.chunk_type}\t({self.size})"
+
+    def write_bytes(self, out_file) -> int:
+        """Write the RIFF bytes to file, and return the number of bytes written."""
+        bytes_written = out_file.write(self.chunk_type)
+        bytes_written += out_file.write(self.size.to_bytes(4, 'little'))
+        bytes_written += out_file.write(self.data)
+        if self.size % 2 != 0:
+            bytes_written += out_file.write(b"\x00")
+        return bytes_written
 
     def get_bytes(self) -> bytes:
         output = self.chunk_type
@@ -92,6 +111,21 @@ class RIFFList(RIFFChunk):
         for chunk in self.data:
             string += indent(f"{chunk}\n")
         return string
+
+    def write_bytes(self, out_file) -> int:
+        """Write the RIFF bytes to file, and return the number of bytes written."""
+        bytes_written = out_file.write(self.chunk_type)
+        bytes_written += out_file.write(self.size.to_bytes(4, 'little'))
+        bytes_written += out_file.write(self.list_type)
+        for chunk in self.data:
+            bytes_written += chunk.write_bytes(out_file)
+
+        if bytes_written != self.size + 8:
+            print(f"Warning: size mismatch in list {self.list_type}| expected size: {self.size + 8}, real size: {bytes_written}")
+
+        if bytes_written % 2 != 0:
+            bytes_written += out_file.write(b"\x00")
+        return bytes_written
 
     def get_bytes(self) -> bytes:
         output = self.chunk_type
@@ -378,23 +412,33 @@ if __name__ == "__main__":
     if not force_overwrite:
         in_out_filepaths = verify_overwrite(in_out_filepaths)
 
-    for in_path, out_path in in_out_filepaths:
+    print()
+
+    for idx, in_out in enumerate(in_out_filepaths):
+        in_path, out_path = in_out
+        print(f" [{idx+1} / {len(in_out_filepaths)}] Processing '{in_path}' -> '{out_path}'...")
         riff_file = RIFFFile(in_path)
 
         if remove_junk:
+            print("\tRemoving JUNK...")
             riff_file.remove_junk()
         if remove_unused_chunk_types:
+            print("\tRemoving runused chunks...")
             riff_file.remove_unused_chunk_types()
         if remove_empty_frames:
+            print("\tRemoving empty frames...")
             riff_file.remove_empty_frames()
         if fix_big_audio_chunk:
+            print("\tFixing big audio chunk...")
             riff_file.fix_big_audio_chunk()
 
         if dry_run:
             print(f"{in_path} -> {out_path}")
             print(riff_file)
         else:
+            print("\tWriting output...")
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, "wb") as out_file:
-                out_file.write(riff_file.get_bytes())
+                riff_file.write_bytes(out_file)
+                # out_file.write(riff_file.get_bytes())
 

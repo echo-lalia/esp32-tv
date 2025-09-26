@@ -12,11 +12,22 @@ parser.add_argument("--fps_min", type=int, default=6, help="The minimum target F
 parser.add_argument("--frame_drop", type=float, default=0.6, help="The aggresiveness of the frame dropping filter (from 0.0 to 1.0). Lower values drop less frames, higher values drop more.")
 parser.add_argument("--audio_rate", type=int, default=16000, help="The audio rate to use for the output video. This must match the audio rate set in your platformio.ini file.")
 parser.add_argument("--quality", type=int, default=31, help="The jpeg quality to use for the video. Should be a value from 0-31, where lower numbers are higher quality, and higher numbers have a smaller file size.")
-parser.add_argument("--crt", action="store_true", help="If provided, enable the CRT filter.")
-parser.add_argument("--sharpen", action="store_true", help="If provided, adds a sharpening filter to the video, which can improve detail on the low-resolution output.")
+parser.add_argument("--crt", type=str, default="True", help="If True, enable the CRT filter.")
+parser.add_argument("--sharpen", type=str, default="True", help="If True, adds a sharpening filter to the video, which can improve detail on the low-resolution output.")
+parser.add_argument("--normalize_audio", type=str, default="True", help="If True, apply loudness normalization to the audio track.")
 parser.add_argument("--relpath", action="store_true", help="Keep the relative directory structure for output files (otherwise collapse output files into one folder).")
 parser.add_argument("--dry_run", action="store_true", help="Just print the changes that would be made without actually making them.")
 parser.add_argument("--force", action="store_true", help="Force overwriting of files.")
+
+
+def smart_str_bool(val: str) -> bool:
+    """Convert a string to a boolean value."""
+    if val.strip().casefold() in {"true", "t", "1", "yes", "y", "on"}:
+        return True
+    if val.strip().casefold() in {"false", "f", "0", "no", "n", "off"}:
+        return False
+    raise ValueError(f"Cannot convert '{val}' to a boolean value.")
+
 
 args = parser.parse_args()
 input_path = args.input_path
@@ -27,8 +38,9 @@ fps_min = args.fps_min
 frame_drop = args.frame_drop
 audio_rate = args.audio_rate
 jpeg_quality = args.quality
-enable_crt = args.crt
-enable_sharpen = args.sharpen
+enable_crt = smart_str_bool(args.crt)
+enable_sharpen = smart_str_bool(args.sharpen)
+enable_audio_normalization = smart_str_bool(args.normalize_audio)
 keep_relpath = args.relpath
 force_overwrite = args.force
 dry_run = args.dry_run
@@ -39,6 +51,7 @@ VIDEO_EXTENSIONS = {".mkv", ".avi", ".mp4", ".mov", ".gif", ".webm", ".mjpeg"}
 CRT_SHADER_PATH = os.path.join(os.path.dirname(__file__), "crt_shader.hlsl")
 
 OUT_EXTENSION = "avi"
+
 
 
 def mix(val1, val2, fac:float = 0.5) -> float:
@@ -82,7 +95,8 @@ def process_video_file(
         sharpen=True,
         crt_shader=True,
         jpeg_quality=31,
-        audio_rate=16000
+        audio_rate=16000,
+        normalize_audio=True,
     ):
     
     # Ensure the target directory exists
@@ -101,7 +115,9 @@ def process_video_file(
 
     filter_string = f'-vf "{base_filter}{_sharp_filter}{_framerate_filter}{_crt_shader}"'
 
-    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -y {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -fps_mode vfr -acodec pcm_u8 -af "loudnorm" -ar {audio_rate} -ac 1 "{output_path}" """
+    normalize_audio_filter = '-filter:a "loudnorm,dynaudnorm=overlap=0.5:targetrms=0.9:p=0.9:s=5"' if normalize_audio else ''
+
+    ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -y {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -fps_mode vfr -acodec pcm_u8 {normalize_audio_filter} -ar {audio_rate} -ac 1 "{output_path}" """
 
     print()
     print(ffmpeg_cmd)
@@ -245,9 +261,6 @@ def verify_overwrite(in_out_filepaths: list[tuple[str, str]]) -> list[tuple[str,
     return in_out_filepaths
     
 
-    
-
-
 
 
 if __name__ == "__main__":
@@ -274,6 +287,7 @@ if __name__ == "__main__":
         print(f"jpeg_quality:    {jpeg_quality}")
         print(f"enable_crt:      {enable_crt}")
         print(f"enable_sharpen:  {enable_sharpen}")
+        print(f"enable_audio_normalization: {enable_audio_normalization}")
         print(f"keep_relpath: {keep_relpath}")
         print(f"force_overwrite: {force_overwrite}")
         print("---")
@@ -294,4 +308,5 @@ if __name__ == "__main__":
                 crt_shader=enable_crt,
                 jpeg_quality=jpeg_quality,
                 audio_rate=audio_rate,
+                normalize_audio=enable_audio_normalization,
             )

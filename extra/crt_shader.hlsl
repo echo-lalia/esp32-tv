@@ -227,7 +227,7 @@ vec4 hook()
     // Apply discoloration to get a VHS look (lower saturation and higher contrast)
 	// You can play with the values below
 	float saturation = 0.05;
-	float contrast = 1.1;
+	// float contrast = 1.0;
 	if (discolor==1)
 	{
 		// Saturation
@@ -235,8 +235,8 @@ vec4 hook()
 		text.rgb = mix(text.rgb, greyscale, saturation);
 
 		// Contrast
-		float midpoint = pow(0.5, 2.2);
-		text.rgb = (text.rgb - vec3(midpoint)) * contrast + midpoint;
+		// float midpoint = pow(0.5, 2.2);
+		// text.rgb = (text.rgb - vec3(midpoint)) * contrast + midpoint;
 	}
 
     return text;
