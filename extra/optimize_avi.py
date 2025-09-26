@@ -425,12 +425,12 @@ if __name__ == "__main__":
         if remove_unused_chunk_types:
             print("\tRemoving runused chunks...")
             riff_file.remove_unused_chunk_types()
-        if remove_empty_frames:
-            print("\tRemoving empty frames...")
-            riff_file.remove_empty_frames()
         if fix_big_audio_chunk:
             print("\tFixing big audio chunk...")
             riff_file.fix_big_audio_chunk()
+        if remove_empty_frames:
+            print("\tRemoving empty frames...")
+            riff_file.remove_empty_frames()
 
         if dry_run:
             print(f"{in_path} -> {out_path}")

@@ -131,6 +131,7 @@ void ChannelData::reshuffleChannels(){
 int ChannelData::getNextChannel(){
   // If it's currently a normal channel, return a random bumper next (if we have any)
   if (mChannelNumber >= 0 && mBumperFiles.size() > 0){
+    randomSeed(esp_random());
     int bumperIndex = random(0, mBumperFiles.size());
     return -1 * (bumperIndex + 1);
   }
