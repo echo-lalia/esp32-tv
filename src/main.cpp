@@ -131,7 +131,12 @@ void setupTv()
   delay(10);
   pinMode(AUDIO_ENABLE_PIN, OUTPUT);
   Serial.printf("Enabling audio by setting Pin %d to %d\n", AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
-  digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  if (audioOutput->getVolume() == 0){
+    digitalWrite(AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
+  }
+  else{
+    digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+  }
   #endif
 }
 
@@ -284,13 +289,21 @@ void loop()
   #ifdef VOLUME_POT_PIN
   if (currentVolume != audioOutput->getVolume()){
     // Set volume, but with a limited step size (reduces popping as volume changes)
-    int maxStep = max(audioOutput->getVolume() / 5, 5);
+    int maxStep = max(audioOutput->getVolume() / 10, 3);
     audioOutput->setVolume(moveToward(audioOutput->getVolume(), currentVolume, maxStep));
+    #ifdef AUDIO_ENABLE_PIN
+    if (audioOutput->getVolume() == 0){
+      digitalWrite(AUDIO_ENABLE_PIN, !AUDIO_ENABLE_VAL);
+    }
+    else{
+      digitalWrite(AUDIO_ENABLE_PIN, AUDIO_ENABLE_VAL);
+    }
+    #endif
   }
   #endif
 
   buttonLoop();
 
-  delay(50);
+  delay(20);
 
 }
