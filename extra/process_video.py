@@ -9,12 +9,12 @@ parser.add_argument("output_path")
 parser.add_argument("--size", nargs=2, type=int, default=[320, 240], help="If provided, should be two integers representing the width and height of the output video.")
 parser.add_argument("--fps_max", type=int, default=20, help="The maximum target FPS to allow.")
 parser.add_argument("--fps_min", type=int, default=6, help="The minimum target FPS to allow.")
-parser.add_argument("--frame_drop", type=float, default=0.6, help="The aggresiveness of the frame dropping filter (from 0.0 to 1.0). Lower values drop less frames, higher values drop more.")
+parser.add_argument("--frame_drop", type=float, default=0.5, help="The aggresiveness of the frame dropping filter (from 0.0 to 1.0). Lower values drop less frames, higher values drop more.")
 parser.add_argument("--audio_rate", type=int, default=16000, help="The audio rate to use for the output video. This must match the audio rate set in your platformio.ini file.")
 parser.add_argument("--quality", type=int, default=31, help="The jpeg quality to use for the video. Should be a value from 0-31, where lower numbers are higher quality, and higher numbers have a smaller file size.")
 parser.add_argument("--crt", type=str, default="True", help="If True, enable the CRT filter.")
 parser.add_argument("--sharpen", type=str, default="True", help="If True, adds a sharpening filter to the video, which can improve detail on the low-resolution output.")
-parser.add_argument("--normalize_audio", type=str, default="True", help="If True, apply loudness normalization to the audio track.")
+parser.add_argument("--normalize_audio", type=str, default="False", help="If True, apply loudness normalization to the audio track.")
 parser.add_argument("--relpath", action="store_true", help="Keep the relative directory structure for output files (otherwise collapse output files into one folder).")
 parser.add_argument("--dry_run", action="store_true", help="Just print the changes that would be made without actually making them.")
 parser.add_argument("--force", action="store_true", help="Force overwriting of files.")
@@ -115,7 +115,7 @@ def process_video_file(
 
     filter_string = f'-vf "{base_filter}{_sharp_filter}{_framerate_filter}{_crt_shader}"'
 
-    normalize_audio_filter = '-filter:a "loudnorm,dynaudnorm=overlap=0.5:targetrms=0.9:p=0.9:s=5"' if normalize_audio else ''
+    normalize_audio_filter = '-filter:a "loudnorm"' if normalize_audio else ''
 
     ffmpeg_cmd = f"""ffmpeg -i "{input_path}" -y {_shader_init_hw} {filter_string} -c:v mjpeg -q:v {jpeg_quality} -fps_mode vfr -acodec pcm_u8 {normalize_audio_filter} -ar {audio_rate} -ac 1 "{output_path}" """
 

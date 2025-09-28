@@ -14,7 +14,7 @@ parser.add_argument("--dry_run", action="store_true", help="Just print the chang
 parser.add_argument("--remove_junk", type=str, default="True", help="Remove JUNK chunks from the AVI file. (This is usually safe)")
 parser.add_argument("--remove_unused", type=str, default="True", help="Remove chunks types that are not used by the ESP32-TV player. (This will remove optional index chunks, which will cause issues with some players)")
 parser.add_argument("--remove_empty_frames", type=str, default="False", help="Remove any empty video frames from the AVI file. (This may cause audio/video sync issues with some players)")
-parser.add_argument("--fix_big_audio_chunk", type=str, default="True", help="Find and split up a final big (and out of order) audio chunk. (this can break any present index chunks, and therefore cause glitches in some players)")
+parser.add_argument("--redistribute_audio_frames", type=str, default="True", help="Redistribute audio frames so that they are evenly spaced around the video frames, and there is a maximum of 2 video frames per audio frame. This helps ensure smooth playback on the ESP32TV.")
 
 
 def smart_str_bool(val: str) -> bool:
@@ -34,8 +34,9 @@ dry_run = args.dry_run
 
 remove_junk = smart_str_bool(args.remove_junk)
 remove_unused_chunk_types = smart_str_bool(args.remove_unused)
+redistribute_audio_frames = smart_str_bool(args.redistribute_audio_frames)
 remove_empty_frames = smart_str_bool(args.remove_empty_frames)
-fix_big_audio_chunk = smart_str_bool(args.fix_big_audio_chunk)
+
 
 
 
@@ -71,14 +72,6 @@ class RIFFChunk:
         if self.size % 2 != 0:
             bytes_written += out_file.write(b"\x00")
         return bytes_written
-
-    def get_bytes(self) -> bytes:
-        output = self.chunk_type
-        output += self.size.to_bytes(4, 'little')
-        output += self.data
-        if self.size % 2 != 0:
-            output += b"\x00"
-        return output
 
 
 class RIFFList(RIFFChunk):
@@ -176,92 +169,69 @@ class RIFFList(RIFFChunk):
         self.size -= freed_bytes
         return freed_bytes
 
-    def fix_big_audio_chunk(self) -> int:
-        """Split up a final, large audio chunk, if present. Returns number of bytes added.
-        
-        AVI files encoded with ffmpeg sometimes have a single audio chunk near the end
-        that is much larger than the rest. (sometimes followed by one very small chunk, but otherwise is the final chunk in the file).
-        This can mess up playback because the final frames are therefore out of sync with the audio.
-        As a workaround, we can look for that final large audio chunk, and split it up into smaller chunks, spaced out.
-        """
+    def redistribute_audio_frames(self) -> int:
+        """Combine, then split, and redistribute audio frames, so that there are ~2 video frames per audio frame. Returns number of bytes added."""
         assert self.list_type == b'movi'
-        added_bytes = 0
 
-        # Find the largest audio chunk size, and average audio chunk size
-        largest_audio_size = 0
-        audio_sizes = {}
-        audio_chunk_count = 0
-        largest_chunk_index = -1
-        for idx, chunk in enumerate(self.data):
+        # Sort video and audio frames.
+        source_video_chunks = []
+        source_audio_chunks = []
+        for chunk in self.data:
             if chunk.chunk_type == b'01wb':
-                audio_chunk_count += 1
-                if chunk.size in audio_sizes:
-                    audio_sizes[chunk.size] += 1
-                else:
-                    audio_sizes[chunk.size] = 1
-                if chunk.size > largest_audio_size:
-                    largest_audio_size = chunk.size
-                    largest_chunk_index = idx
-
-        if audio_chunk_count == 0:
-            raise ValueError("No audio chunks found in movi list.")
-        # Get the most common audio chunk size (the mode)
-        average_audio_size = max(audio_sizes, key=audio_sizes.get)
-        if largest_audio_size < average_audio_size * 2:
-            # No audio chunk is more than twice the average size, so we don't need to do anything.
-            return 0
-        # Split the video stream at the largest audio chunk
-        good_data = self.data[:largest_chunk_index]
-        bad_video_chunks = []
-        bad_audio_chunks = []
-        for chunk in self.data[largest_chunk_index:]:
-            if chunk.chunk_type == b'00dc':
-                bad_video_chunks.append(chunk)
-            elif chunk.chunk_type == b'01wb':
-                bad_audio_chunks.append(chunk)
+                source_audio_chunks.append(chunk)
+            elif chunk.chunk_type == b'00dc':
+                source_video_chunks.append(chunk)
             else:
-                print(f"Warning: unexpected chunk type {chunk.chunk_type} found while splitting movi list. (it will be discarded)")
-        if len(bad_audio_chunks) > 2:
-            print(
-                f"Warning: found too many 'bad' audio chunks while attempting fix_big_audio_chunk (found {len(bad_audio_chunks)}, but expected 1 to 2)."
-                "The fix may not work correctly for this file, so it will be skipped.",
-            )
-            return 0
-        if not bad_audio_chunks or not bad_video_chunks:
-            print("Warning: no 'bad' audio or video chunks found while attempting fix_big_audio_chunk. The fix will be skipped.")
-            return 0
-
-        bad_audio_data = b"".join([chunk.data for chunk in bad_audio_chunks])
-        new_bad_audio_chunks = []
-        while len(bad_audio_data) > 0:
-            chunk_size = min(average_audio_size, len(bad_audio_data))
-            new_chunk_data = bad_audio_data[:chunk_size]
-            bad_audio_data = bad_audio_data[chunk_size:]
-            new_bad_audio_chunk = RIFFChunk(b'01wb', len(new_chunk_data), new_chunk_data)
-            new_bad_audio_chunks.append(new_bad_audio_chunk)
-        added_bytes = len(new_bad_audio_chunks) * 8  - (len(bad_audio_chunks) * 8)
-        added_bytes += sum(chunk.padded_size for chunk in new_bad_audio_chunks) - sum(chunk.padded_size for chunk in bad_audio_chunks)
+                print(f"WARNING: found chunk of type {chunk.chunk_type} in movi list. This script will discard this chunk.")
         
-        # Reinterleave the video and audio chunks
-        num_splits = min(len(bad_video_chunks), len(new_bad_audio_chunks))
-        while num_splits > 0:
-            vid_chunks_per_split = len(bad_video_chunks) // num_splits
-            audio_chunks_per_split = len(new_bad_audio_chunks) // num_splits
-            # Evenly distribute the new audio and video chunks
-            good_data += new_bad_audio_chunks[:audio_chunks_per_split]
-            new_bad_audio_chunks = new_bad_audio_chunks[audio_chunks_per_split:]
-            good_data += bad_video_chunks[:vid_chunks_per_split]
-            bad_video_chunks = bad_video_chunks[vid_chunks_per_split:]
-            num_splits -= 1
-        # Add any remaining chunks
-        good_data += bad_video_chunks
-        good_data += new_bad_audio_chunks
+        if not (source_audio_chunks and source_video_chunks):
+            print("WARNING: Audio or video chunks are empty! Can't redistribute them!")
+            return 0
 
-        self.data = good_data
+        # Extract audio data (We're using a bytearray/memoryview rather than bytes for speed)
+        audio_data_len = sum(chunk.size for chunk in source_audio_chunks)
+        audio_array = bytearray(audio_data_len)
+        audio_data = memoryview(audio_array)
+        current_index = 0
+        for chunk in source_audio_chunks:
+            audio_data[current_index:current_index + chunk.size] = chunk.data
+            current_index += chunk.size
+
+        # find optimal audio chunk length to maintain 2 frames per audio chunk
+        optimal_audio_size = int(len(audio_data) / len(source_video_chunks) * 2)
+        # Keep the chunk sizes even.
+        if optimal_audio_size % 2 != 0:
+            optimal_audio_size += 1
+        print(f"\t\t - Calculated optimal audio chunk size: {optimal_audio_size}")
+
+        # Create the new audio chunks
+        new_audio_chunks = []
+        while audio_data:
+            this_chunk_data = bytes(audio_data[:optimal_audio_size])
+            audio_data = audio_data[optimal_audio_size:]
+            new_audio_chunk = RIFFChunk(b'01wb', len(this_chunk_data), this_chunk_data)
+            new_audio_chunks.append(new_audio_chunk)
+        
+        # interleave the new video and audio chunks together
+        remaining_audio_chunks = new_audio_chunks.copy()
+        remaining_video_chunks = source_video_chunks.copy()
+        # Video stream should always start with one audio and one video chunk
+        new_interleave_data = [remaining_video_chunks.pop(0), remaining_audio_chunks.pop(0)]
+        while remaining_audio_chunks:
+            frames_this_split = int(len(remaining_video_chunks) / len(remaining_audio_chunks))
+            new_interleave_data += remaining_video_chunks[:frames_this_split]
+            remaining_video_chunks = remaining_video_chunks[frames_this_split:]
+            new_interleave_data.append(remaining_audio_chunks.pop(0))
+        # Add any final video chunks
+        new_interleave_data += remaining_video_chunks
+
+        # Calculate byte difference.
+        added_bytes = 8*len(new_audio_chunks) - 8*len(source_audio_chunks)
+        added_bytes += sum(chunk.padded_size for chunk in new_audio_chunks) - sum(chunk.padded_size for chunk in source_audio_chunks)
+
+        self.data = new_interleave_data
         self.size += added_bytes
-
         return added_bytes
-
 
 
 
@@ -307,8 +277,8 @@ class RIFFFile(RIFFList):
         freed_bytes = self.movi_list.remove_empty_frames()
         self.size -= freed_bytes
 
-    def fix_big_audio_chunk(self):
-        added_bytes = self.movi_list.fix_big_audio_chunk()
+    def redistribute_audio_frames(self):
+        added_bytes = self.movi_list.redistribute_audio_frames()
         self.size += added_bytes
 
 
@@ -425,9 +395,9 @@ if __name__ == "__main__":
         if remove_unused_chunk_types:
             print("\tRemoving runused chunks...")
             riff_file.remove_unused_chunk_types()
-        if fix_big_audio_chunk:
-            print("\tFixing big audio chunk...")
-            riff_file.fix_big_audio_chunk()
+        if redistribute_audio_frames:
+            print("\tRedistributing audio frames...")
+            riff_file.redistribute_audio_frames()
         if remove_empty_frames:
             print("\tRemoving empty frames...")
             riff_file.remove_empty_frames()
@@ -440,5 +410,3 @@ if __name__ == "__main__":
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, "wb") as out_file:
                 riff_file.write_bytes(out_file)
-                # out_file.write(riff_file.get_bytes())
-
